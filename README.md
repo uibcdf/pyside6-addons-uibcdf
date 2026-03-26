@@ -31,6 +31,22 @@ Current source of truth:
 - upstream codebase reference:
   - ~/repos@others/pyside-setup
 
+Current repo layout:
+
+- upstream pyside6 code is now staged directly in this repo for the Addons line:
+  - root build files from `sources/pyside6`
+  - `cmake`
+  - `libpyside`
+  - `libpysideqml`
+  - `libpysideremoteobjects`
+  - `plugins`
+  - `PySide6/glue`, `PySide6/support`, `PySide6/templates`
+  - only the runtime-backed module dirs currently needed by the Addons boundary
+- packaging/devtools remain repo-local and experimental:
+  - `devtools/conda-build`
+  - `devtools/conda-envs`
+  - `manifests`
+
 First-pass success criteria:
 
 1. package the PySide6_Addons wheel boundary in conda form

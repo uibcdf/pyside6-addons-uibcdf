@@ -95,3 +95,49 @@ packaged as part of an aligned UIBCDF family.
 - do not mix `Addons` payloads across family versions
 - treat `QWebEngineView` importability as a family-level check
 - keep this note updated whenever the source extraction rule changes
+
+Current upstream subset staged in this repo:
+
+- root build files from `sources/pyside6`
+- `cmake`
+- `libpyside`
+- `libpysideqml`
+- `libpysideremoteobjects`
+- `plugins`
+- `PySide6/glue`, `PySide6/support`, `PySide6/templates`
+- runtime-backed module dirs currently imported for the Addons boundary:
+  - `Qt3DAnimation`
+  - `Qt3DCore`
+  - `Qt3DExtras`
+  - `Qt3DInput`
+  - `Qt3DLogic`
+  - `Qt3DRender`
+  - `QtBluetooth`
+  - `QtCharts`
+  - `QtDataVisualization`
+  - `QtGraphs`
+  - `QtGraphsWidgets`
+  - `QtHttpServer`
+  - `QtLocation`
+  - `QtMultimedia`
+  - `QtMultimediaWidgets`
+  - `QtNetworkAuth`
+  - `QtNfc`
+  - `QtPdf`
+  - `QtPdfWidgets`
+  - `QtPositioning`
+  - `QtQuick3D`
+  - `QtRemoteObjects`
+  - `QtScxml`
+  - `QtSensors`
+  - `QtSerialBus`
+  - `QtSerialPort`
+  - `QtSpatialAudio`
+  - `QtStateMachine`
+  - `QtTextToSpeech`
+  - `QtWebChannel`
+  - `QtWebEngineCore`
+  - `QtWebEngineQuick`
+  - `QtWebEngineWidgets`
+  - `QtWebSockets`
+  - `QtWebView`
