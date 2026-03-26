@@ -11,7 +11,6 @@ build:
 requirements:
   host:
     - python =3.13
-    - pip
     - shiboken6-uibcdf ==6.9.2
     - pyside6-essentials-uibcdf ==6.9.2
   run:
@@ -19,6 +18,20 @@ requirements:
     - shiboken6-uibcdf ==6.9.2
     - pyside6-essentials-uibcdf ==6.9.2
 
+test:
+  commands:
+    - test -f "$SP_DIR/PySide6/QtWebChannel.abi3.so"
+    - test -f "$SP_DIR/PySide6/QtWebEngineCore.abi3.so"
+    - test -f "$SP_DIR/PySide6/Qt/libexec/QtWebEngineProcess"
+    - python -c "import PySide6.QtWebChannel; print(PySide6.QtWebChannel.__file__)"
+
 about:
-  summary: "Experimental UIBCDF-aligned PySide6 Addons package scaffold for Linux/Python 3.13."
+  summary: "Experimental UIBCDF-aligned PySide6 Addons package for Linux/Python 3.13."
   license: "LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"
+  description: |
+    First experimental conda package boundary for the PySide6 Addons slice in
+    the provisional UIBCDF Qt-for-Python family.
+
+extra:
+  recipe-maintainers:
+    - uibcdf

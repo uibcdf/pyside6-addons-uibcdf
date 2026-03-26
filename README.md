@@ -25,9 +25,9 @@ Current source of truth:
 
 - validated environment:
   /home/diego/Myopt/miniconda3/envs/molsyssuite-qt-spike
-- local manifests staged in molsysviewer:
-  - sandbox/qt_for_python_uibcdf_experiment/manifests/pyside6_addons.files.txt
-  - sandbox/qt_for_python_uibcdf_experiment/manifests/pyside6_addons.runtime.txt
+- local manifests copied into this repo:
+  - manifests/pyside6_addons.files.txt
+  - manifests/pyside6_addons.runtime.txt
 - upstream codebase reference:
   - ~/repos@others/pyside-setup
 
@@ -42,3 +42,22 @@ First-pass success criteria:
    - QtWebEngineWidgets
    - QtWebEngineProcess
 3. make QWebEngineView importable once the family is installed together
+
+Current packaging approach:
+
+- first pass is manifest-driven rather than source-build-driven
+- the current first-pass boundary is intentionally limited to the Python/runtime
+  payload staged under `site-packages`
+- wrapper commands under `bin/` are deferred until the core Addons boundary is
+  proven
+- `devtools/conda-build/build.sh` copies the validated `PySide6_Addons` boundary
+  from the known-good environment into `$SP_DIR`
+- the source environment can be overridden with:
+  - `PYSIDE6_ADDONS_UIBCDF_SOURCE_PREFIX`
+
+Current known boundary caveats:
+
+- a few `PySide6/scripts/*` and `PySide6/support/*` references from the wheel
+  manifest do not map one-to-one onto the observed source environment layout
+- the first-pass recipe therefore focuses on the core Addons runtime boundary
+  needed for imports such as `PySide6.QtWebChannel`

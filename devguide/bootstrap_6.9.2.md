@@ -5,8 +5,8 @@
 This repo currently tracks the first Linux/Python 3.13 experimental UIBCDF line
 for `PySide6_Addons` version `6.9.2`.
 
-The repo is still at scaffold stage. The source import and recipe refinement are
-still pending, but the local rules for doing them are recorded here.
+The repo is no longer only a scaffold. It now contains a first manifest-driven
+recipe attempt for the Addons line.
 
 ## Why This Repo Exists
 
@@ -39,13 +39,12 @@ The initial boundary reading came from the validated environment:
 
 - `/home/diego/Myopt/miniconda3/envs/molsyssuite-qt-spike`
 
-Current local manifests copied into this repo should come from:
+Current local manifests copied into this repo:
 
-- `molsysviewer/sandbox/qt_for_python_uibcdf_experiment/manifests/pyside6_addons.files.txt`
-- `molsysviewer/sandbox/qt_for_python_uibcdf_experiment/manifests/pyside6_addons.runtime.txt`
+- `manifests/pyside6_addons.files.txt`
+- `manifests/pyside6_addons.runtime.txt`
 
-At the time this note was written, those manifests have not yet been copied
-into this repo. That is one of the first next steps.
+These came from the validated `molsyssuite-qt-spike` environment.
 
 ## Current Packaging Reading
 
