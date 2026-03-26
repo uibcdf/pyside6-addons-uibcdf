@@ -46,6 +46,11 @@ Current local manifests copied into this repo:
 
 These came from the validated `molsyssuite-qt-spike` environment.
 
+A standalone-focused reduced manifest pair is also now maintained:
+
+- `manifests/pyside6_addons_standalone.files.txt`
+- `manifests/pyside6_addons_standalone.runtime.txt`
+
 ## Current Packaging Reading
 
 `PySide6_Addons` carries the standalone-critical layer, including:
@@ -58,6 +63,21 @@ These came from the validated `molsyssuite-qt-spike` environment.
 - `QtWebEngineProcess`
 - WebEngine QML/resources/translations
 
+The full observed Addons boundary is large:
+
+- about 400 MB total
+
+The standalone-focused reduced boundary is still substantial, but much more
+plausible:
+
+- about 244 MB
+
+That reduced boundary is defined by the pieces explicitly tied to:
+
+- `WebEngine`
+- `WebChannel`
+- `Positioning`
+
 The earlier investigation also showed that naive overlay or pip/conda mixing is
 not a stable path. This repo therefore exists so the `Addons` slice can be
 packaged as part of an aligned UIBCDF family.
@@ -69,17 +89,23 @@ packaged as part of an aligned UIBCDF family.
 - `shiboken6-uibcdf`
 - `pyside6-essentials-uibcdf`
 
-## First Implementation Checklist
+## Current Packaging Decision
 
-1. copy the validated manifests into `manifests/`
-2. vendor the relevant upstream code from `sources/pyside6`
-3. isolate the `Addons` slice from the broader upstream tree
-4. write a manifest-driven `build.sh`
-5. add minimal file/import tests to `meta.yaml`
-6. run a temporary `site-packages` smoke check
-7. only then attempt a true `conda build`
-8. once packaged with the other two repos, test:
-   - `from PySide6.QtWebEngineWidgets import QWebEngineView`
+The first pass remains manifest-driven, but the default boundary is now the
+standalone-focused reduced manifest rather than the full Addons payload.
+
+That decision is based on two observations:
+
+1. a family-level smoke already passes with the reduced subset when staging:
+   - `shiboken6-uibcdf`
+   - `pyside6-essentials-uibcdf`
+   - reduced `pyside6-addons-uibcdf`
+   into a temporary `site-packages`
+2. the full payload includes a single file around 189 MB:
+   - `PySide6/Qt/lib/libQt6WebEngineCore.so.6`
+
+This means the reduced manifest is the more realistic candidate for first
+public packaging of the standalone family.
 
 ## How To Open A Future 6.10.x Line
 
@@ -94,6 +120,8 @@ packaged as part of an aligned UIBCDF family.
 
 - do not mix `Addons` payloads across family versions
 - treat `QWebEngineView` importability as a family-level check
+- keep the reduced standalone-focused manifest explicit unless a deliberate
+  decision is made to restore the full Addons payload
 - keep this note updated whenever the source extraction rule changes
 
 Current upstream subset staged in this repo:

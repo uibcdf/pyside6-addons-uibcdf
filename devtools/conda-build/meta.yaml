@@ -21,9 +21,11 @@ requirements:
 test:
   commands:
     - test -f "$SP_DIR/PySide6/QtWebChannel.abi3.so"
+    - test -f "$SP_DIR/PySide6/QtPositioning.abi3.so"
     - test -f "$SP_DIR/PySide6/QtWebEngineCore.abi3.so"
+    - test -f "$SP_DIR/PySide6/QtWebEngineWidgets.abi3.so"
     - test -f "$SP_DIR/PySide6/Qt/libexec/QtWebEngineProcess"
-    - python -c "import PySide6.QtWebChannel; print(PySide6.QtWebChannel.__file__)"
+    - python -c "from PySide6.QtWebEngineWidgets import QWebEngineView; print(QWebEngineView.__module__)"
 
 about:
   summary: "Experimental UIBCDF-aligned PySide6 Addons package for Linux/Python 3.13."

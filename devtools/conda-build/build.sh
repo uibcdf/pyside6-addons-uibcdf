@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SOURCE_SITE_PACKAGES="${PYSIDE6_ADDONS_UIBCDF_SOURCE_PREFIX:-/home/diego/Myopt/miniconda3/envs/molsyssuite-qt-spike/lib/python3.13/site-packages}"
 REPO_ROOT="$(cd "${RECIPE_DIR}/../.." && pwd)"
-MANIFEST="${REPO_ROOT}/manifests/pyside6_addons.files.txt"
+SOURCE_SITE_PACKAGES="${PYSIDE6_ADDONS_UIBCDF_SOURCE_PREFIX:-/home/diego/Myopt/miniconda3/envs/molsyssuite-qt-spike/lib/python3.13/site-packages}"
+MANIFEST="${PYSIDE6_ADDONS_UIBCDF_MANIFEST:-${REPO_ROOT}/manifests/pyside6_addons_standalone.files.txt}"
 
 if [ ! -d "$SOURCE_SITE_PACKAGES" ]; then
     echo "Missing source site-packages: $SOURCE_SITE_PACKAGES" >&2

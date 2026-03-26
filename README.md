@@ -28,6 +28,9 @@ Current source of truth:
 - local manifests copied into this repo:
   - manifests/pyside6_addons.files.txt
   - manifests/pyside6_addons.runtime.txt
+- standalone-focused reduced manifests:
+  - manifests/pyside6_addons_standalone.files.txt
+  - manifests/pyside6_addons_standalone.runtime.txt
 - upstream codebase reference:
   - ~/repos@others/pyside-setup
 
@@ -64,16 +67,27 @@ Current packaging approach:
 - first pass is manifest-driven rather than source-build-driven
 - the current first-pass boundary is intentionally limited to the Python/runtime
   payload staged under `site-packages`
+- the default manifest is now the standalone-focused reduced boundary:
+  - `WebEngine`
+  - `WebChannel`
+  - `Positioning`
 - wrapper commands under `bin/` are deferred until the core Addons boundary is
   proven
 - `devtools/conda-build/build.sh` copies the validated `PySide6_Addons` boundary
   from the known-good environment into `$SP_DIR`
 - the source environment can be overridden with:
   - `PYSIDE6_ADDONS_UIBCDF_SOURCE_PREFIX`
+- the manifest can also be overridden explicitly with:
+  - `PYSIDE6_ADDONS_UIBCDF_MANIFEST`
 
 Current known boundary caveats:
 
 - a few `PySide6/scripts/*` and `PySide6/support/*` references from the wheel
   manifest do not map one-to-one onto the observed source environment layout
 - the first-pass recipe therefore focuses on the core Addons runtime boundary
-  needed for imports such as `PySide6.QtWebChannel`
+  needed for imports such as `from PySide6.QtWebEngineWidgets import QWebEngineView`
+- the full Addons payload is about 400 MB in the validated environment
+- the standalone-focused reduced boundary is about 244 MB
+- a naive repo-local full-boundary vendoring step is currently unattractive
+  because a single file already weighs about 189 MB:
+  - `PySide6/Qt/lib/libQt6WebEngineCore.so.6`
