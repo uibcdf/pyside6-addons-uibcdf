@@ -4,11 +4,11 @@ This directory records the local packaging and maintenance recipe for pyside6-ad
 
 Primary entrypoint:
 
-- [bootstrap_6.9.2.md](bootstrap_6.9.2.md)
+- [bootstrap_6.10.2.md](bootstrap_6.10.2.md)
 
 Purpose:
 
-- make the 6.9.2 line reproducible without consulting /tmp/molsysviewer-standalone0-85y21nll.html
+- record the original 6.9.2 bootstrap boundary and the later 6.10.2 pivot
 - record where the code came from
 - record why this repo exists inside the provisional UIBCDF Qt-for-Python family
-- record how to approach a future 6.10.x line
+- make the active 6.10.2 line reproducible without consulting `molsysviewer`

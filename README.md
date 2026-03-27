@@ -7,7 +7,14 @@ Current scope:
 
 - Linux
 - Python 3.13
-- version family: 6.9.2
+- target source-build family: 6.10.2
+
+Note:
+
+- the repo still contains bootstrap boundary assets derived from the earlier
+  6.9.2 spike environment
+- those assets are now historical scaffolding, not the authoritative version
+  target for the line we are opening
 
 Role in the family:
 

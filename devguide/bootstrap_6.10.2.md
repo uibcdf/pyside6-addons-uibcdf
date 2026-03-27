@@ -1,12 +1,15 @@
-# Bootstrap 6.9.2
+# Bootstrap 6.10.2
 
 ## Scope
 
-This repo currently tracks the first Linux/Python 3.13 experimental UIBCDF line
-for `PySide6_Addons` version `6.9.2`.
+This repo currently tracks the active Linux/Python 3.13 experimental UIBCDF
+line for `PySide6_Addons` version `6.10.2`.
 
 The repo is no longer only a scaffold. It now contains a first manifest-driven
 recipe attempt for the Addons line.
+
+Those boundary assets come from the earlier `6.9.2` bootstrap environment and
+now serve as historical scaffolding while the line pivots to `6.10.2`.
 
 ## Why This Repo Exists
 
@@ -107,7 +110,7 @@ That decision is based on two observations:
 This means the reduced manifest is the more realistic candidate for first
 public packaging of the standalone family.
 
-## How To Open A Future 6.10.x Line
+## How To Open A Future Line
 
 1. validate a coherent 6.10.x family environment first
 2. regenerate `PySide6_Addons` manifests from that environment
