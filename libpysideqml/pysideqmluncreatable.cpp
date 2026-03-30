@@ -72,7 +72,7 @@ PyTypeObject *createPySideQmlUncreatableType(void)
         PySide::ClassDecorator::Methods<PySideQmlUncreatablePrivate>::typeSlots();
 
     PyType_Spec PySideQmlUncreatableType_spec = {
-        "2:PySide6.QtCore.QmlUncreatable",
+        "2:PySide6.QtCore.qmlUncreatable",
         sizeof(PySideClassDecorator),
         0,
         Py_TPFLAGS_DEFAULT,
@@ -96,13 +96,12 @@ static const char *qmlUncreatable_SignatureStrings[] = {
 
 void initQmlUncreatable(PyObject *module)
 {
-    auto *qmlUncreatableType = PySideQmlUncreatable_TypeF();
-    if (InitSignatureStrings(qmlUncreatableType, qmlUncreatable_SignatureStrings) < 0)
+    if (InitSignatureStrings(PySideQmlUncreatable_TypeF(), qmlUncreatable_SignatureStrings) < 0)
         return;
 
-    auto *obQmlUncreatableType = reinterpret_cast<PyObject *>(qmlUncreatableType);
-    Py_INCREF(obQmlUncreatableType);
-    PepModule_AddType(module, qmlUncreatableType);
+    Py_INCREF(PySideQmlUncreatable_TypeF());
+    PyModule_AddObject(module, "QmlUncreatable",
+                       reinterpret_cast<PyObject *>(PySideQmlUncreatable_TypeF()));
 }
 
 void setUncreatableClassInfo(PyTypeObject *type, const QByteArray &reason)

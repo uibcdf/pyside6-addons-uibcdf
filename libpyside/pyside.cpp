@@ -30,8 +30,6 @@
 #include <gilstate.h>
 #include <helper.h>
 #include <sbkconverter.h>
-#include <sbkerrors.h>
-#include <sbkpep.h>
 #include <sbkstring.h>
 #include <sbkstaticstrings.h>
 #include <sbkfeature_base.h>
@@ -65,10 +63,7 @@
 using namespace Qt::StringLiterals;
 
 static QStack<PySide::CleanupFunction> cleanupFunctionList;
-
-// Used by QML (main thread), but needs to be protected against other
-// threads constructing QObject's.
-static void thread_local *qobjectNextAddr;
+static void *qobjectNextAddr;
 
 QT_BEGIN_NAMESPACE
 extern bool qRegisterResourceData(int, const unsigned char *, const unsigned char *,
@@ -415,8 +410,7 @@ static void destructionVisitor(SbkObject *pyObj, void *data)
     auto *pyQApp = reinterpret_cast<SbkObject *>(realData[0]);
     auto *pyQObjectType = reinterpret_cast<PyTypeObject *>(realData[1]);
 
-    auto *ob = reinterpret_cast<PyObject *>(pyObj);
-    if (pyObj != pyQApp && PyObject_TypeCheck(ob, pyQObjectType)) {
+    if (pyObj != pyQApp && PyObject_TypeCheck(pyObj, pyQObjectType)) {
         if (Shiboken::Object::hasOwnership(pyObj) && Shiboken::Object::isValid(pyObj, false)) {
             Shiboken::Object::setValidCpp(pyObj, false);
 
@@ -458,24 +452,21 @@ std::size_t getSizeOfQObject(PyTypeObject *type)
     return retrieveTypeUserData(type)->cppObjSize;
 }
 
-static void initDynamicMetaObjectHelper(PyTypeObject *type,
-                                        TypeUserData *userData)
+void initDynamicMetaObject(PyTypeObject *type, const QMetaObject *base, std::size_t cppObjSize)
 {
+    //create DynamicMetaObject based on python type
+    auto *userData = new TypeUserData(reinterpret_cast<PyTypeObject *>(type), base, cppObjSize);
+    userData->mo.update();
     Shiboken::ObjectType::setTypeUserData(type, userData, Shiboken::callCppDestructor<TypeUserData>);
 
-    // initialize staticQMetaObject property
-    const void *metaObjectPtr = userData->mo.update();
+    //initialize staticQMetaObject property
+    void *metaObjectPtr = const_cast<QMetaObject *>(userData->mo.update());
     static SbkConverter *converter = Shiboken::Conversions::getConverter("QMetaObject");
     if (!converter)
         return;
     Shiboken::AutoDecRef pyMetaObject(Shiboken::Conversions::pointerToPython(converter, metaObjectPtr));
     PyObject_SetAttr(reinterpret_cast<PyObject *>(type),
                      Shiboken::PyName::qtStaticMetaObject(), pyMetaObject);
-}
-
-void initDynamicMetaObject(PyTypeObject *type, const QMetaObject *base, std::size_t cppObjSize)
-{
-    initDynamicMetaObjectHelper(type, new TypeUserData(base, cppObjSize));
 }
 
 TypeUserData *retrieveTypeUserData(PyTypeObject *pyTypeObj)
@@ -529,9 +520,7 @@ void initQObjectSubType(PyTypeObject *type, PyObject *args, PyObject * /* kwds *
     // PYSIDE-1463: Don't change feature selection durin subtype initialization.
     // This behavior is observed with PySide 6.
     PySide::Feature::Enable(false);
-    // create DynamicMetaObject based on python type
-    auto *subTypeData = new TypeUserData(type, userData->mo.update(), userData->cppObjSize);
-    initDynamicMetaObjectHelper(type, subTypeData);
+    initDynamicMetaObject(type, userData->mo.update(), userData->cppObjSize);
     PySide::Feature::Enable(true);
 }
 
@@ -606,7 +595,10 @@ PyObject *getHiddenDataFromQObject(QObject *cppSelf, PyObject *self, PyObject *n
 
     // Search on metaobject (avoid internal attributes started with '__')
     if (!attr) {
-        Shiboken::Errors::Stash errorStash;
+        PyObject *type{};
+        PyObject *value{};
+        PyObject *traceback{};
+        PyErr_Fetch(&type, &value, &traceback);     // This was omitted for a loong time.
 
         int flags = currentSelectId(Py_TYPE(self));
         int snake_flag = flags & 0x01;
@@ -631,10 +623,8 @@ PyObject *getHiddenDataFromQObject(QObject *cppSelf, PyObject *self, PyObject *n
                     if (res) {
                         AutoDecRef elemName(PyObject_GetAttr(res, PySideMagicName::name()));
                         // Note: This comparison works because of interned strings.
-                        if (elemName == name) {
-                            errorStash.release();
+                        if (elemName == name)
                             return res;
-                        }
                         Py_DECREF(res);
                     }
                     PyErr_Clear();
@@ -665,7 +655,6 @@ PyObject *getHiddenDataFromQObject(QObject *cppSelf, PyObject *self, PyObject *n
                     } else if (auto *func = MetaFunction::newObject(cppSelf, i)) {
                         auto *result = reinterpret_cast<PyObject *>(func);
                         PyObject_SetAttr(self, name, result);
-                        errorStash.release();
                         return result;
                     }
                 }
@@ -674,17 +663,17 @@ PyObject *getHiddenDataFromQObject(QObject *cppSelf, PyObject *self, PyObject *n
                 auto *pySignal = reinterpret_cast<PyObject *>(
                     Signal::newObjectFromMethod(cppSelf, self, signalList));
                 PyObject_SetAttr(self, name, pySignal);
-                errorStash.release();
                 return pySignal;
             }
         }
+        PyErr_Restore(type, value, traceback);
     }
     return attr;
 }
 
 bool inherits(PyTypeObject *objType, const char *class_name)
 {
-    if (std::strcmp(PepType_GetFullyQualifiedNameStr(objType), class_name) == 0)
+    if (strcmp(objType->tp_name, class_name) == 0)
         return true;
 
     PyTypeObject *base = objType->tp_base;
@@ -967,7 +956,7 @@ bool registerInternalQtConf()
         return false;
     }
 
-    PyObject *pysideModule = PyImport_ImportModule("PySide6");
+    PyObject *pysideModule = PyImport_ImportModule("PySide6_uibcdf");
     if (!pysideModule)
         return false;
 
@@ -1069,10 +1058,10 @@ QMetaType qMetaTypeFromPyType(PyTypeObject *pyType)
         return QMetaType(QMetaType::Int);
     if (Shiboken::ObjectType::checkType(pyType))
         return QMetaType::fromName(Shiboken::ObjectType::getOriginalName(pyType));
-    return QMetaType::fromName(PepType_GetFullyQualifiedNameStr(pyType));
+    return QMetaType::fromName(pyType->tp_name);
 }
 
-debugPyTypeObject::debugPyTypeObject(PyTypeObject *o) noexcept
+debugPyTypeObject::debugPyTypeObject(const PyTypeObject *o) noexcept
     : m_object(o)
 {
 }
@@ -1084,7 +1073,7 @@ QDebug operator<<(QDebug debug, const debugPyTypeObject &o)
     debug.nospace();
     debug << "PyTypeObject(";
     if (o.m_object)
-        debug << '"' << PepType_GetFullyQualifiedNameStr(o.m_object) << '"';
+        debug << '"' << o.m_object->tp_name << '"';
     else
         debug << '0';
     debug << ')';
@@ -1221,7 +1210,10 @@ QDebug operator<<(QDebug debug, const debugPyObject &o)
     return debug;
 }
 
-#if !defined(Py_LIMITED_API) || Py_LIMITED_API >= 0x030B0000
+debugPyBuffer::debugPyBuffer(Py_buffer *b) noexcept : m_buffer(b)
+{
+}
+
 static void formatPy_ssizeArray(QDebug &debug, const char *name, const Py_ssize_t *array, int len)
 {
     debug << ", " << name << '=';
@@ -1233,10 +1225,6 @@ static void formatPy_ssizeArray(QDebug &debug, const char *name, const Py_ssize_
     } else {
         debug << '0';
     }
-}
-
-debugPyBuffer::debugPyBuffer(Py_buffer *b) noexcept : m_buffer(b)
-{
 }
 
 PYSIDE_API QDebug operator<<(QDebug debug, const debugPyBuffer &b)
@@ -1264,6 +1252,5 @@ PYSIDE_API QDebug operator<<(QDebug debug, const debugPyBuffer &b)
     debug << ')';
     return debug;
 }
-#endif // !Py_LIMITED_API || >= 3.11
 
 } // namespace PySide

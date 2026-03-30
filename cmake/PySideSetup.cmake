@@ -7,12 +7,17 @@ cmake_policy(SET CMP0046 NEW)
 set(QT_MAJOR_VERSION 6)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}")
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/../../shiboken6/cmake")
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/../../shiboken6-uibcdf/cmake")
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_INSTALL_PREFIX}/${LIB_INSTALL_DIR}/cmake/Shiboken6")
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/Macros")
 
 # TODO: Don't directly include, ShibokenHelpers but rather pick it up from the installed Shiboken
 # package. Needs to support top-level build as well (Shiboken is not yet installed in that case).
-include(ShibokenHelpers)
+if(EXISTS "${CMAKE_INSTALL_PREFIX}/lib/cmake/Shiboken6/ShibokenHelpers.cmake")
+    include("${CMAKE_INSTALL_PREFIX}/lib/cmake/Shiboken6/ShibokenHelpers.cmake")
+else()
+    include(ShibokenHelpers)
+endif()
 include(PySideHelpers)
 
 #does nothing if QFP_NO_OVERRIDE_OPTIMIZATION_FLAGS (no-size-optimization) flag is not set
@@ -52,7 +57,6 @@ set(BINDING_API_MINOR_VERSION "${pyside_MINOR_VERSION}")
 set(BINDING_API_MICRO_VERSION "${pyside_MICRO_VERSION}")
 set(BINDING_API_PRE_RELEASE_VERSION_TYPE "${pyside_PRE_RELEASE_VERSION_TYPE}")
 set(BINDING_API_PRE_RELEASE_VERSION "${pyside_PRE_RELEASE_VERSION}")
-set(pyside6_library_so_version "${SHIBOKEN_SO_VERSION}")
 
 # Detect if the Python interpreter is actually PyPy
 execute_process(
@@ -98,8 +102,7 @@ if(QFP_QT_HOST_PATH)
         endif()
     endif()
 endif()
-# Find QtGui private headers for exposing some QPA classes
-find_package(Qt6 REQUIRED COMPONENTS Core CorePrivate Gui GuiPrivate)
+find_package(Qt6 REQUIRED COMPONENTS Core)
 
 add_definitions(${Qt${QT_MAJOR_VERSION}Core_DEFINITIONS})
 
@@ -146,7 +149,7 @@ set_cmake_cxx_flags()
 
 message(STATUS "*** computed QT_INCLUDE_DIR as ${QT_INCLUDE_DIR}")
 
-set(BINDING_NAME PySide6)
+set(BINDING_NAME PySide6_uibcdf)
 
 set(BINDING_API_VERSION "${BINDING_API_MAJOR_VERSION}.${BINDING_API_MINOR_VERSION}.${BINDING_API_MICRO_VERSION}" CACHE STRING "PySide6 version" FORCE)
 set(PYSIDE_SO_VERSION ${BINDING_API_MAJOR_VERSION}.${BINDING_API_MINOR_VERSION})
@@ -169,12 +172,9 @@ set (Qt${QT_MAJOR_VERSION}Widgets_FOUND "0")
 collect_essential_modules()
 collect_optional_modules()
 
-# Additional (non-Qt) modules implemented in PySide only
-set(PURE_PYTHON_MODULES Asyncio)
-
 # Modules to be built unless specified by -DMODULES on command line
 if(NOT MODULES)
-    set(MODULES "${ALL_ESSENTIAL_MODULES};${ALL_OPTIONAL_MODULES};${PURE_PYTHON_MODULES}")
+    set(MODULES "${ALL_ESSENTIAL_MODULES};${ALL_OPTIONAL_MODULES}")
     set(required_modules ${ALL_ESSENTIAL_MODULES})
     set(optional_modules ${ALL_OPTIONAL_MODULES})
 else()
@@ -184,16 +184,6 @@ endif()
 list(REMOVE_ITEM MODULES ${SKIP_MODULES})
 list(REMOVE_ITEM required_modules ${SKIP_MODULES})
 list(REMOVE_ITEM optional_modules ${SKIP_MODULES})
-
-# Non-Qt modules must be removed before find_packages tries to locate them.
-foreach(m IN LISTS PURE_PYTHON_MODULES)
-    set(DISABLE_Qt${m} 1)
-    if("Qt${m}" IN_LIST MODULES OR "${m}" IN_LIST MODULES)
-        set(DISABLE_Qt${m} 0)
-    endif()
-    list(FILTER MODULES EXCLUDE REGEX "^(Qt)?${m}$")
-    list(FILTER required_modules EXCLUDE REGEX "^(Qt)?${m}$")
-endforeach()
 
 find_package(Qt6
     COMPONENTS ${required_modules}
@@ -207,7 +197,7 @@ remove_skipped_modules()
 
 # Mark all non-collected modules as disabled. This is used for disabling tests
 # that depend on the disabled modules.
-foreach(m IN LISTS DISABLED_MODULES)
+foreach(m ${DISABLED_MODULES})
     set(DISABLE_Qt${m} 1)
 endforeach()
 
@@ -215,7 +205,7 @@ endforeach()
 find_package(Qt6 COMPONENTS Qml)
 
 # Whether to add libpysideremoteobjects
-find_package(Qt6 COMPONENTS RemoteObjects)
+find_package(Qt6 QUIET COMPONENTS RemoteObjects)
 
 string(REGEX MATCHALL "[0-9]+" qt_version_helper "${Qt${QT_MAJOR_VERSION}Core_VERSION}")
 
@@ -230,6 +220,9 @@ if(ENABLE_VERSION_SUFFIX)
 endif()
 
 # no more supported: include(${QT_USE_FILE})
+
+# Configure OS support
+check_os()
 
 # Define supported Qt Version
 set(SUPPORTED_QT_VERSION "${QT_VERSION_MAJOR}.${QT_VERSION_MINOR}.${QT_VERSION_PATCH}")
@@ -250,6 +243,37 @@ if(NOT PYTHON_SITE_PACKAGES)
     shiboken_internal_set_python_site_packages()
 endif()
 
+if(IS_ABSOLUTE "${PYTHON_SITE_PACKAGES}")
+    set(UIBCDF_PYSIDE_SITE_ROOT "${PYTHON_SITE_PACKAGES}")
+else()
+    set(UIBCDF_PYSIDE_SITE_ROOT "${CMAKE_INSTALL_PREFIX}/${PYTHON_SITE_PACKAGES}")
+endif()
+
+set(UIBCDF_PYSIDE_SITE_INCLUDE_DIR
+    "${UIBCDF_PYSIDE_SITE_ROOT}/PySide6/include")
+set(UIBCDF_SHIBOKEN_SITE_INCLUDE_DIR
+    "${CMAKE_INSTALL_PREFIX}/shiboken6_uibcdf/include")
+
+set(UIBCDF_PYSIDE_EXTRA_INCLUDE_DIRS "${UIBCDF_PYSIDE_SITE_INCLUDE_DIR}")
+file(GLOB _uibcdf_pyside_include_entries LIST_DIRECTORIES true
+    "${UIBCDF_PYSIDE_SITE_INCLUDE_DIR}/*")
+foreach(_uibcdf_entry ${_uibcdf_pyside_include_entries})
+    if(IS_DIRECTORY "${_uibcdf_entry}")
+        file(GLOB _uibcdf_python_headers "${_uibcdf_entry}/pyside6_*_python.h")
+        if(_uibcdf_python_headers)
+            list(APPEND UIBCDF_PYSIDE_EXTRA_INCLUDE_DIRS "${_uibcdf_entry}")
+        endif()
+    endif()
+endforeach()
+
+foreach(_uibcdf_include_dir
+        ${UIBCDF_PYSIDE_EXTRA_INCLUDE_DIRS}
+        "${UIBCDF_SHIBOKEN_SITE_INCLUDE_DIR}")
+    if(EXISTS "${_uibcdf_include_dir}")
+        include_directories("${_uibcdf_include_dir}")
+    endif()
+endforeach()
+
 shiboken_get_debug_level(debug_level)
 if(SHIBOKEN_UNOPTIMIZE)
     SET(UNOPTIMIZE "--unoptimize=${SHIBOKEN_UNOPTIMIZE}")
@@ -267,11 +291,8 @@ set(GENERATOR_EXTRA_FLAGS
 use_protected_as_public_hack()
 
 # Build with Address sanitizer enabled if requested. This may break things, so use at your own risk.
-if(SANITIZE_ADDRESS)
+if(SANITIZE_ADDRESS AND NOT MSVC)
     setup_sanitize_address()
-endif()
-if(SANITIZE_THREAD)
-    setup_sanitize_thread()
 endif()
 
 find_package(Qt6 COMPONENTS Designer)

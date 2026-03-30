@@ -13,7 +13,6 @@
 #include <autodecref.h>
 #include <gilstate.h>
 #include <sbkconverter.h>
-#include <sbkpep.h>
 #include <sbkstring.h>
 #include <sbktypefactory.h>
 #include <signature.h>
@@ -60,7 +59,7 @@ static PyTypeObject *createPySideQmlAttachedType()
         PySide::ClassDecorator::Methods<PySideQmlAttachedPrivate>::typeSlots();
 
     PyType_Spec PySideQmlAttachedType_spec = {
-        "2:PySide6.QtCore.QmlAttached",
+        "2:PySide6.QtCore.qmlAttached",
         sizeof(PySideClassDecorator),
         0,
         Py_TPFLAGS_DEFAULT,
@@ -108,7 +107,7 @@ static QObject *attachedFactoryHelper(PyTypeObject *attachingType, QObject *o)
 
     if (PyType_IsSubtype(pyResult->ob_type, qObjectType()) == 0) {
         qWarning("QmlAttached: Attached objects must inherit QObject, got %s.",
-                 PepType_GetFullyQualifiedNameStr(Py_TYPE(pyResult)));
+                 pyResult->ob_type->tp_name);
         return nullptr;
     }
 
@@ -167,13 +166,12 @@ void initQmlAttached(PyObject *module)
     std::fill(attachingTypes, attachingTypes + MAX_ATTACHING_TYPES, nullptr);
     AttachedFactoryInitializer<MAX_ATTACHING_TYPES - 1>::init();
 
-    auto *qmlAttachedType = PySideQmlAttached_TypeF();
-    if (InitSignatureStrings(qmlAttachedType, qmlAttached_SignatureStrings) < 0)
+    if (InitSignatureStrings(PySideQmlAttached_TypeF(), qmlAttached_SignatureStrings) < 0)
         return;
 
-    auto *obQmlAttachedType = reinterpret_cast<PyObject *>(qmlAttachedType);
-    Py_INCREF(obQmlAttachedType);
-    PepModule_AddType(module, qmlAttachedType);
+    Py_INCREF(PySideQmlAttached_TypeF());
+    PyModule_AddObject(module, "QmlAttached",
+                       reinterpret_cast<PyObject *>(PySideQmlAttached_TypeF()));
 }
 
 PySide::Qml::QmlExtensionInfo qmlAttachedInfo(PyTypeObject *t,
@@ -183,7 +181,7 @@ PySide::Qml::QmlExtensionInfo qmlAttachedInfo(PyTypeObject *t,
     if (!info || info->attachedType == nullptr)
         return result;
 
-    const auto *name = PepType_GetFullyQualifiedNameStr(reinterpret_cast<PyTypeObject *>(t));
+    const auto *name = reinterpret_cast<PyTypeObject *>(t)->tp_name;
     if (nextAttachingType >= MAX_ATTACHING_TYPES) {
         qWarning("Unable to initialize attached type \"%s\": "
                  "The limit %d of  attached types has been reached.",
@@ -210,8 +208,7 @@ QObject *qmlAttachedPropertiesObject(PyObject *typeObject, QObject *obj, bool cr
     auto *end = attachingTypes + nextAttachingType;
     auto *typePtr = std::find(attachingTypes, end, type);
     if (typePtr == end) {
-        qWarning("%s: Attaching type \"%s\" not found.", __FUNCTION__,
-                 PepType_GetFullyQualifiedNameStr(type));
+        qWarning("%s: Attaching type \"%s\" not found.", __FUNCTION__, type->tp_name);
         return nullptr;
     }
 

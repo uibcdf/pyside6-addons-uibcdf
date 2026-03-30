@@ -14,7 +14,6 @@
 // shiboken
 #include <autodecref.h>
 #include <sbkconverter.h>
-#include <sbkpep.h>
 #include <sbkstring.h>
 #include <sbktypefactory.h>
 
@@ -99,11 +98,8 @@ static inline bool isQmlParserStatus(const QMetaObject *o)
 
 static QByteArray getGlobalString(const char *name)
 {
-    Shiboken::AutoDecRef globals(PepEval_GetFrameGlobals());
-    if (globals.isNull())
-        return {};
+    PyObject *globalVar = PyDict_GetItemString(PyEval_GetGlobals(), name);
 
-    PyObject *globalVar = PyDict_GetItemString(globals, name);
     if (globalVar == nullptr || PyUnicode_Check(globalVar) == 0)
         return {};
 
@@ -113,11 +109,8 @@ static QByteArray getGlobalString(const char *name)
 
 static int getGlobalInt(const char *name)
 {
-    Shiboken::AutoDecRef globals(PepEval_GetFrameGlobals());
-    if (globals.isNull())
-        return -1;
+    PyObject *globalVar = PyDict_GetItemString(PyEval_GetGlobals(), name);
 
-    PyObject *globalVar = PyDict_GetItemString(globals, name);
     if (globalVar == nullptr || PyLong_Check(globalVar) == 0)
         return -1;
 
@@ -215,7 +208,7 @@ static int qmlRegisterType(PyObject *pyObj,
     // there's no way to unregister a QML type.
     Py_INCREF(pyObj);
 
-    const QByteArray typeName(PepType_GetFullyQualifiedNameStr(pyObjType));
+    const QByteArray typeName(pyObjType->tp_name);
     QByteArray ptrType = typeName + '*';
     QByteArray listType = QByteArrayLiteral("QQmlListProperty<") + typeName + '>';
     const auto typeId = QMetaType(new QQmlMetaTypeInterface(ptrType));
@@ -658,10 +651,8 @@ static std::optional<SingletonQObjectCreation>
     Shiboken::AutoDecRef tpDict(PepType_GetDict(pyObjType));
     auto *create = PyDict_GetItemString(tpDict.object(), "create");
     // Method decorated by "@staticmethod"
-    if (create == nullptr
-        || std::strcmp(PepType_GetFullyQualifiedNameStr(Py_TYPE(create)), "staticmethod") != 0) {
+    if (create == nullptr || std::strcmp(Py_TYPE(create)->tp_name, "staticmethod") != 0)
         return std::nullopt;
-    }
     // 3.10: "__wrapped__"
     Shiboken::AutoDecRef function(PyObject_GetAttrString(create, "__func__"));
     if (function.isNull()) {

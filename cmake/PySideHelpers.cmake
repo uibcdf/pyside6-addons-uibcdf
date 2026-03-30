@@ -50,7 +50,6 @@ function(pyside_internal_find_host_shiboken_tools)
         list(APPEND "REQUIRED")
     endif()
 
-    set(SHIBOKEN6TOOLS_SKIP_FIND_DEPENDENCIES TRUE)
     find_package(
         Shiboken6Tools 6 CONFIG
         ${find_package_extra_args}
@@ -133,15 +132,31 @@ macro(collect_optional_modules)
     list(APPEND ALL_OPTIONAL_MODULES WebChannel WebEngineCore WebEngineWidgets
          WebEngineQuick WebSockets HttpServer)
     find_package(Qt${QT_MAJOR_VERSION}WebEngineQuick)
-    # For Windows and Linux, QtWebView depends on QtWebEngine to render content.
-    # On Android and Apple platforms, QtWebView uses the native webview backend and
-    # does not require QtWebEngine.
-    if(APPLE OR ANDROID)
-        list(APPEND ALL_OPTIONAL_MODULES WebView)
-    elseif(Qt${QT_MAJOR_VERSION}WebEngineQuick_FOUND)
+    # for Windows and Linux, QtWebView depends on QtWebEngine to render content
+    if(Qt${QT_MAJOR_VERSION}WebEngineQuick_FOUND OR APPLE)
         list(APPEND ALL_OPTIONAL_MODULES WebView)
     endif()
     list(APPEND ALL_OPTIONAL_MODULES 3DCore 3DRender 3DInput 3DLogic 3DAnimation 3DExtras)
+endmacro()
+
+macro(check_os)
+    set(ENABLE_UNIX "1")
+    set(ENABLE_MAC "0")
+    set(ENABLE_WIN "0")
+
+    # check if Android, if so, set ENABLE_UNIX=1
+    # this is needed to avoid including the wrapper specific to macOS when building for Android
+    # from a macOS host
+    if(NOT CMAKE_SYSTEM_NAME STREQUAL "Android")
+        if(CMAKE_HOST_APPLE)
+            set(ENABLE_MAC "1")
+        elseif(CMAKE_HOST_WIN32)
+            set(ENABLE_WIN "1")
+            set(ENABLE_UNIX "0")
+        elseif(NOT CMAKE_HOST_UNIX)
+            message(FATAL_ERROR "OS not supported")
+        endif()
+    endif()
 endmacro()
 
 macro(use_protected_as_public_hack)
@@ -240,13 +255,16 @@ macro(collect_module_if_found shortname)
         # record the shortnames for the tests
         list(APPEND all_module_shortnames ${shortname})
         # Build Qt 5 compatibility variables
-        get_target_property(Qt6${shortname}_INCLUDE_DIRS Qt6::${shortname}
-                            INTERFACE_INCLUDE_DIRECTORIES)
-        # Find QtGui private headers for exposing some QPA classes
-        if("${shortname}" STREQUAL "Gui")
-            get_target_property(Qt6${shortname}_PRIVATE_INCLUDE_DIRS
-                                Qt6::${shortname}Private
+        if(${QT_MAJOR_VERSION} GREATER_EQUAL 6 AND NOT "${shortname}" STREQUAL "OpenGLFunctions")
+            get_target_property(Qt6${shortname}_INCLUDE_DIRS Qt6::${shortname}
                                 INTERFACE_INCLUDE_DIRECTORIES)
+            if(TARGET Qt6::${shortname}Private)
+                get_target_property(Qt6${shortname}_PRIVATE_INCLUDE_DIRS
+                                    Qt6::${shortname}Private
+                                    INTERFACE_INCLUDE_DIRECTORIES)
+            else()
+                set(Qt6${shortname}_PRIVATE_INCLUDE_DIRS "")
+            endif()
             set(Qt6${shortname}_LIBRARIES Qt::${shortname})
         endif()
     else()

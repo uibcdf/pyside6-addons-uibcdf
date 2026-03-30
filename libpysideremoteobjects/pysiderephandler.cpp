@@ -7,7 +7,6 @@
 #include "pysidedynamiccommon_p.h"
 
 #include <pep384ext.h>
-#include <sbkerrors.h>
 #include <sbkstring.h>
 #include <sbktypefactory.h>
 #include <signature.h>
@@ -368,16 +367,22 @@ bool instantiateFromDefaultValue(QVariant &variant, const QString &defaultValue)
     static PyObject *pyLocals = PyDict_New();
 
     // Create the Python expression to evaluate
-    std::string code = std::string(PepType_GetFullyQualifiedNameStr(pyType)) + '('
+    std::string code = std::string(pyType->tp_name) + '('
                        + defaultValue.toUtf8().constData() + ')';
     PyObject *pyResult = PyRun_String(code.c_str(), Py_eval_input, pyLocals, pyLocals);
 
     if (!pyResult) {
-        Shiboken::Errors::Stash errorStash;
+        PyObject *ptype = nullptr;
+        PyObject *pvalue = nullptr;
+        PyObject *ptraceback = nullptr;
+        PyErr_Fetch(&ptype, &pvalue, &ptraceback);
+        PyErr_NormalizeException(&ptype, &pvalue, &ptraceback);
         PyErr_Format(PyExc_TypeError,
                      "Failed to generate default value. Error: %s. Problematic code: %s",
-                     Shiboken::String::toCString(PyObject_Str(errorStash.getException())), code.c_str());
-        errorStash.release();
+                     Shiboken::String::toCString(PyObject_Str(pvalue)), code.c_str());
+        Py_XDECREF(ptype);
+        Py_XDECREF(pvalue);
+        Py_XDECREF(ptraceback);
         Py_DECREF(pyLocals);
         return false;
     }
@@ -441,10 +446,8 @@ void init(PyObject *module)
     qRegisterMetaType<QRemoteObjectPendingCall>();
     qRegisterMetaType<QRemoteObjectPendingCallWatcher>();
 
-    auto *repType = PySideRepFile_TypeF();
-    auto *obRepType = reinterpret_cast<PyObject *>(repType);
-    Py_INCREF(obRepType);
-    PepModule_AddType(module, repType);
+    Py_INCREF(PySideRepFile_TypeF());
+    PyModule_AddObject(module, "RepFile", reinterpret_cast<PyObject *>(PySideRepFile_TypeF()));
 
     // Add a test helper to verify type reference counting
     static PyMethodDef get_capsule_count_def = {
@@ -454,7 +457,7 @@ void init(PyObject *module)
         "Returns the current count of PyCapsule objects"   // docstring
     };
 
-    PepModule_Add(module, "getCapsuleCount", PyCFunction_New(&get_capsule_count_def, nullptr));
+    PyModule_AddObject(module, "getCapsuleCount", PyCFunction_New(&get_capsule_count_def, nullptr));
 }
 
 } // namespace PySide::RemoteObjects

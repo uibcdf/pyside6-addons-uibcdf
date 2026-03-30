@@ -1,50 +1,69 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO_ROOT="$(cd "${RECIPE_DIR}/../.." && pwd)"
-SOURCE_SITE_PACKAGES="${PYSIDE6_ADDONS_UIBCDF_SOURCE_PREFIX:-/home/diego/Myopt/miniconda3/envs/molsyssuite-qt-spike/lib/python3.13/site-packages}"
-MANIFEST="${PYSIDE6_ADDONS_UIBCDF_MANIFEST:-${REPO_ROOT}/manifests/pyside6_addons_standalone.files.txt}"
+export LLVM_INSTALL_DIR="${PREFIX}"
+export CLANG_INSTALL_DIR="${PREFIX}"
+export C_INCLUDE_PATH="${PREFIX}/include${C_INCLUDE_PATH:+:${C_INCLUDE_PATH}}"
+export CPLUS_INCLUDE_PATH="${PREFIX}/include${CPLUS_INCLUDE_PATH:+:${CPLUS_INCLUDE_PATH}}"
 
-if [ ! -d "$SOURCE_SITE_PACKAGES" ]; then
-    echo "Missing source site-packages: $SOURCE_SITE_PACKAGES" >&2
-    exit 1
+cmake -S "${SRC_DIR}" -B "${SRC_DIR}/build-conda" -G Ninja \
+    -DCMAKE_INSTALL_PREFIX="${PREFIX}" \
+    -DCMAKE_PREFIX_PATH="${PREFIX}" \
+    -DPython_EXECUTABLE="${PYTHON}" \
+    -DPYTHON_SITE_PACKAGES="${SP_DIR}" \
+    -DBUILD_TESTS=OFF \
+    -DDISABLE_PYI=ON \
+    -DMODULES='Positioning;WebChannel;WebEngineCore;WebEngineQuick;WebEngineWidgets'
+
+wrapper="${SRC_DIR}/build-conda/.qfp/bin/shiboken_wrapper.sh"
+if [ -f "${wrapper}" ]; then
+    python - <<PATCH_WRAPPER
+from pathlib import Path
+p = Path(${wrapper@Q})
+text = p.read_text()
+needle = "#!/bin/bash\n"
+insert = "#!/bin/bash\nexport LLVM_INSTALL_DIR=${PREFIX@Q}\nexport CLANG_INSTALL_DIR=${PREFIX@Q}\n"
+if text.startswith(needle) and "LLVM_INSTALL_DIR" not in text:
+    text = insert + text[len(needle):]
+    p.write_text(text)
+PATCH_WRAPPER
 fi
 
-if [ ! -f "$MANIFEST" ]; then
-    echo "Missing manifest: $MANIFEST" >&2
-    exit 1
-fi
+cmake --build "${SRC_DIR}/build-conda" --parallel "${CPU_COUNT:-2}"
+cmake --install "${SRC_DIR}/build-conda"
+python - <<'PY_RELOCATE'
+from pathlib import Path
+import os
+import shutil
 
-while IFS= read -r relpath; do
-    [ -n "$relpath" ] || continue
+sp = Path(os.environ["SP_DIR"])
+canon = sp / "PySide6"
+suff = sp / "PySide6_uibcdf"
+suff.mkdir(parents=True, exist_ok=True)
 
-    case "$relpath" in
-        ../../../bin/*)
-            continue
-            ;;&
-        *__pycache__/*|*.pyc)
-            continue
-            ;;&
-    esac
+def merge_move(src: Path, dst: Path):
+    for item in list(src.iterdir()):
+        target = dst / item.name
+        if item.is_dir():
+            if target.exists() and target.is_dir():
+                merge_move(item, target)
+                item.rmdir()
+            elif target.exists():
+                item.rename(target.with_name(target.name + '.uibcdf_tmp_conflict'))
+                raise RuntimeError(f'conflict moving directory {item} -> {target}')
+            else:
+                shutil.move(str(item), str(target))
+        else:
+            if target.exists():
+                item.unlink()
+            else:
+                shutil.move(str(item), str(target))
 
-    src="$SOURCE_SITE_PACKAGES/$relpath"
-    dst="$SP_DIR/$relpath"
-
-    if [ ! -e "$src" ]; then
-        case "$relpath" in
-            PySide6/scripts/*)
-                echo "Skipping missing script-side manifest entry: $src" >&2
-                continue
-                ;;&
-            PySide6/support/*)
-                echo "Skipping missing support-side manifest entry: $src" >&2
-                continue
-                ;;&
-        esac
-        echo "Missing manifest entry in source environment: $src" >&2
-        exit 1
-    fi
-
-    mkdir -p "$(dirname "$dst")"
-    cp -a "$src" "$dst"
-done < "$MANIFEST"
+if canon.exists():
+    merge_move(canon, suff)
+    if canon.exists():
+        try:
+            canon.rmdir()
+        except OSError:
+            pass
+PY_RELOCATE

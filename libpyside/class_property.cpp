@@ -168,13 +168,12 @@ void init(PyObject *module)
     PyTypeObject *type = SbkObjectType_TypeF();
     type->tp_setattro = SbkObjectType_meta_setattro;
 
-    auto *classPropertyType = PyClassProperty_TypeF();
-    if (InitSignatureStrings(classPropertyType, PyClassProperty_SignatureStrings) < 0)
+    if (InitSignatureStrings(PyClassProperty_TypeF(), PyClassProperty_SignatureStrings) < 0)
         return;
 
-    auto *obClassPropertyType = reinterpret_cast<PyObject *>(classPropertyType);
-    Py_INCREF(obClassPropertyType);
-    PepModule_AddType(module, classPropertyType);
+    Py_INCREF(PyClassProperty_TypeF());
+    auto *classproptype = reinterpret_cast<PyObject *>(PyClassProperty_TypeF());
+    PyModule_AddObject(module, "PyClassProperty", classproptype);
 }
 
 } // namespace PySide::ClassProperty

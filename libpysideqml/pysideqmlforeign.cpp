@@ -57,7 +57,7 @@ static PyTypeObject *createPySideQmlForeignType()
         PySide::ClassDecorator::Methods<PySideQmlForeignPrivate>::typeSlots();
 
     PyType_Spec PySideQmlForeignType_spec = {
-        "2:PySide6.QtCore.QmlForeign",
+        "2:PySide6.QtCore.qmlForeign",
         sizeof(PySideClassDecorator),
         0,
         Py_TPFLAGS_DEFAULT,
@@ -83,13 +83,12 @@ namespace PySide::Qml {
 
 void initQmlForeign(PyObject *module)
 {
-    auto *foreignType = PySideQmlForeign_TypeF();
-    if (InitSignatureStrings(foreignType, qmlForeign_SignatureStrings) < 0)
+    if (InitSignatureStrings(PySideQmlForeign_TypeF(), qmlForeign_SignatureStrings) < 0)
         return;
 
-    auto *obForeignType = reinterpret_cast<PyObject *>(foreignType);
-    Py_INCREF(obForeignType);
-    PepModule_AddType(module, foreignType);
+    Py_INCREF(PySideQmlForeign_TypeF());
+    PyModule_AddObject(module, "QmlForeign",
+                       reinterpret_cast<PyObject *>(PySideQmlForeign_TypeF()));
 }
 
 } // namespace PySide::Qml

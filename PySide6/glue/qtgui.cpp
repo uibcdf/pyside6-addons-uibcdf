@@ -365,11 +365,6 @@ for (Py_ssize_t i = 0; i < count; ++i){
 %PYARG_0 = %CONVERTTOPYTHON[QPolygon *](%CPPSELF);
 // @snippet qpolygon-operatorlowerlower
 
-// @snippet qpolygonf-operatorlowerlower
-*%CPPSELF << %1;
-%PYARG_0 = %CONVERTTOPYTHON[QPolygonF *](%CPPSELF);
-// @snippet qpolygonf-operatorlowerlower
-
 // @snippet qpixmap
 %0 = new %TYPE(QPixmap::fromImage(%1));
 // @snippet qpixmap
@@ -858,7 +853,7 @@ for (Py_ssize_t i = 0; i < 16; ++i) {
 }
 // @snippet qmatrix4x4-copydatato
 
-// @snippet qmatrix-mgetitem
+// @snippet qmatrix4x4-mgetitem
 if (PySequence_Check(_key)) {
     Shiboken::AutoDecRef key(PySequence_Fast(_key, "Invalid matrix index."));
     if (PySequence_Size(key.object()) == 2) {
@@ -872,7 +867,7 @@ if (PySequence_Check(_key)) {
 }
 PyErr_SetString(PyExc_IndexError, "Invalid matrix index.");
 return 0;
-// @snippet qmatrix-mgetitem
+// @snippet qmatrix4x4-mgetitem
 
 // @snippet qguiapplication-init
 static void QGuiApplicationConstructor(PyObject *self, PyObject *pyargv, QGuiApplicationWrapper **cptr)
@@ -912,13 +907,7 @@ if (auto *x11App = %CPPSELF.nativeInterface<QNativeInterface::QX11Application>()
     hasNativeApp = true;
     %PYARG_0 = %CONVERTTOPYTHON[QNativeInterface::QX11Application*](x11App);
 }
-#endif // xcb
-#if QT_CONFIG(wayland)
-if (auto *waylandApp = %CPPSELF.nativeInterface<QNativeInterface::QWaylandApplication>()) {
-    hasNativeApp = true;
-    %PYARG_0 = %CONVERTTOPYTHON[QNativeInterface::QWaylandApplication*](waylandApp);
-}
-#endif // wayland
+#endif
 if (!hasNativeApp) {
     Py_INCREF(Py_None);
     %PYARG_0 = Py_None;
@@ -945,11 +934,10 @@ if (!hasNativeScreen) {
 }
 // @snippet qscreen-nativeInterface
 
-// Return 'int' from native interface's forward-declared structs like Display*
-// @snippet native-resource-ptr
+// @snippet qx11application-resource-ptr
  auto *resource = %CPPSELF.%FUNCTION_NAME();
 %PYARG_0 = PyLong_FromVoidPtr(resource);
-// @snippet native-resource-ptr
+// @snippet qx11application-resource-ptr
 
 // @snippet qwindow-fromWinId
 WId id = %1;
@@ -1067,7 +1055,7 @@ return %CONVERTTOPYTHON[QRect](cppResult);
 // @snippet qpainterstateguard-restore
 
 // @snippet qmatrix-repr-code
-QByteArray format(PepType_GetFullyQualifiedNameStr(Py_TYPE(%PYSELF)));
+QByteArray format(Py_TYPE(%PYSELF)->tp_name);
 format += QByteArrayLiteral("((");
 %MATRIX_TYPE data[%MATRIX_SIZE];
 %CPPSELF.copyDataTo(data);

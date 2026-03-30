@@ -46,7 +46,6 @@ static PyObject *qProperty_fdel(PyObject *, void *);
 
 static PyMethodDef PySidePropertyMethods[] = {
     {"getter", reinterpret_cast<PyCFunction>(qPropertyGetter), METH_O, nullptr},
-    // "name@setter" handling
     {"setter", reinterpret_cast<PyCFunction>(qPropertySetter), METH_O,  nullptr},
     {"resetter", reinterpret_cast<PyCFunction>(qPropertyResetter), METH_O,  nullptr},
     {"deleter", reinterpret_cast<PyCFunction>(qPropertyDeleter), METH_O, nullptr},
@@ -115,7 +114,7 @@ PyObject *PySidePropertyPrivate::getValue(PyObject *source) const
 
 int PySidePropertyPrivate::setValue(PyObject *source, PyObject *value)
 {
-    if (fset != nullptr && fset != Py_None && value != nullptr) {
+    if (fset && value) {
         Shiboken::AutoDecRef args(PyTuple_New(2));
         PyTuple_SetItem(args, 0, source);
         PyTuple_SetItem(args, 1, value);
@@ -124,7 +123,7 @@ int PySidePropertyPrivate::setValue(PyObject *source, PyObject *value)
         Shiboken::AutoDecRef result(PyObject_CallObject(fset, args));
         return (result.isNull() ? -1 : 0);
     }
-    if (fdel != nullptr && fdel != Py_None) {
+    if (fdel) {
         Shiboken::AutoDecRef args(PyTuple_New(1));
         PyTuple_SetItem(args, 0, source);
         Py_INCREF(source);
@@ -137,7 +136,7 @@ int PySidePropertyPrivate::setValue(PyObject *source, PyObject *value)
 
 int PySidePropertyPrivate::reset(PyObject *source)
 {
-    if (freset != nullptr && freset != Py_None) {
+    if (freset) {
         Shiboken::AutoDecRef args(PyTuple_New(1));
         Py_INCREF(source);
         PyTuple_SetItem(args, 0, source);
@@ -487,7 +486,7 @@ static const char *Property_SignatureStrings[] = {
         "fset:typing.Optional[collections.abc.Callable[[typing.Any,typing.Any],None]]=None,"
         "freset:typing.Optional[collections.abc.Callable[[typing.Any,typing.Any],None]]=None,"
         "doc:str=None,"
-        "notify:typing.Optional[PySide6.QtCore.Signal]=None,"
+        "notify:typing.Optional[collections.abc.Callable[[],None]]=None,"
         "designable:bool=True,scriptable:bool=True,"
         "stored:bool=True,user:bool=False,constant:bool=False,final:bool=False)",
     "PySide6.QtCore.Property.deleter(self,fdel:collections.abc.Callable[[typing.Any],None])->PySide6.QtCore.Property",
@@ -500,13 +499,11 @@ static const char *Property_SignatureStrings[] = {
 
 void init(PyObject *module)
 {
-    auto *propertyType = PySideProperty_TypeF();
-    if (InitSignatureStrings(propertyType, Property_SignatureStrings) < 0)
+    if (InitSignatureStrings(PySideProperty_TypeF(), Property_SignatureStrings) < 0)
         return;
 
-    auto *obPropertyType = reinterpret_cast<PyObject *>(propertyType);
-    Py_INCREF(obPropertyType);
-    PepModule_AddType(module, propertyType);
+    Py_INCREF(PySideProperty_TypeF());
+    PyModule_AddObject(module, "Property", reinterpret_cast<PyObject *>(PySideProperty_TypeF()));
 }
 
 bool checkType(PyObject *pyObj)
@@ -560,12 +557,12 @@ bool isReadable(const PySideProperty * /* self */)
 
 bool isWritable(const PySideProperty *self)
 {
-    return self->d->fset != nullptr && self->d->fset != Py_None;
+    return self->d->fset != nullptr;
 }
 
 bool hasReset(const PySideProperty *self)
 {
-    return self->d->freset != nullptr && self->d->freset != Py_None;
+    return self->d->freset != nullptr;
 }
 
 bool isDesignable(const PySideProperty *self)

@@ -169,3 +169,27 @@ Current upstream subset staged in this repo:
   - `QtWebEngineWidgets`
   - `QtWebSockets`
   - `QtWebView`
+
+## Pause Checkpoint
+
+Current active state before pausing:
+
+- This repo already contains the clean `6.9.2` source line, the `_uibcdf` namespace split,
+  the reduced standalone-focused module set, and the Qt helper-package assumptions
+  (`qt6-positioning-uibcdf`, `qt6-webengine-uibcdf`).
+- `build.sh` now also includes a post-install relocation step intended to move any canonical
+  `site-packages/PySide6/...` install tree into `site-packages/PySide6_uibcdf/...`.
+- `meta.yaml` now asserts that `site-packages/PySide6/Qt` should not remain after installation.
+
+This repo should remain paused until `pyside6-essentials-uibcdf` is rebuilt successfully with the
+updated `_uibcdf` runtime layout.
+
+Exact next command after `Essentials` closes again:
+
+- `conda build /home/diego/repos@uibcdf/pyside6-addons-uibcdf/devtools/conda-build`
+
+First things to verify when resuming:
+
+1. `PySide6_uibcdf/QtWebChannel.abi3.so` and the other suffixed addon modules are still produced
+2. `PySide6_uibcdf/Qt/libexec/QtWebEngineProcess` is present
+3. no canonical `PySide6/Qt/...` tree remains in the final package

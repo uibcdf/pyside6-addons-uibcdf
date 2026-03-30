@@ -9,30 +9,51 @@ build:
   number: 0
 
 requirements:
+  build:
+    - {{ compiler('c') }}
+    - {{ compiler('cxx') }}
+    - cmake
+    - ninja
+    - pkg-config
   host:
     - python =3.13
+    - qt6-main =6.9.2
+    - qt6-positioning-uibcdf ==6.9.2
+    - qt6-webengine-uibcdf ==6.9.2
+    - libopengl
+    - libgl-devel
+    - libglx-devel
+    - clangdev
+    - llvmdev
     - shiboken6-uibcdf ==6.9.2
     - pyside6-essentials-uibcdf ==6.9.2
   run:
     - python =3.13
+    - qt6-main >=6.9.2,<6.10.0a0
+    - qt6-positioning-uibcdf ==6.9.2
+    - qt6-webengine-uibcdf ==6.9.2
+    - libopengl
     - shiboken6-uibcdf ==6.9.2
     - pyside6-essentials-uibcdf ==6.9.2
+    - libgcc
+    - libstdcxx
 
 test:
   commands:
-    - test -f "$SP_DIR/PySide6/QtWebChannel.abi3.so"
-    - test -f "$SP_DIR/PySide6/QtPositioning.abi3.so"
-    - test -f "$SP_DIR/PySide6/QtWebEngineCore.abi3.so"
-    - test -f "$SP_DIR/PySide6/QtWebEngineWidgets.abi3.so"
-    - test -f "$SP_DIR/PySide6/Qt/libexec/QtWebEngineProcess"
-    - python -c "from PySide6.QtWebEngineWidgets import QWebEngineView; print(QWebEngineView.__module__)"
+    - test ! -e "$SP_DIR/PySide6/Qt"
+    - test -f "$SP_DIR/PySide6_uibcdf/QtWebChannel.abi3.so"
+    - test -f "$SP_DIR/PySide6_uibcdf/QtPositioning.abi3.so"
+    - test -f "$SP_DIR/PySide6_uibcdf/QtWebEngineCore.abi3.so"
+    - test -f "$SP_DIR/PySide6_uibcdf/QtWebEngineWidgets.abi3.so"
+    - test -f "$SP_DIR/PySide6_uibcdf/Qt/libexec/QtWebEngineProcess"
+    - python -c "from PySide6_uibcdf.QtWebEngineWidgets import QWebEngineView; print(QWebEngineView.__module__)"
 
 about:
-  summary: "Experimental UIBCDF-aligned PySide6 Addons package for Linux/Python 3.13."
+  summary: "Experimental UIBCDF-aligned PySide6 Addons 6.9.2 package for Linux/Python 3.13."
   license: "LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"
   description: |
-    First experimental conda package boundary for the PySide6 Addons slice in
-    the provisional UIBCDF Qt-for-Python family.
+    Experimental source-built conda package for the standalone-critical Addons
+    slice in the provisional UIBCDF Qt-for-Python family.
 
 extra:
   recipe-maintainers:

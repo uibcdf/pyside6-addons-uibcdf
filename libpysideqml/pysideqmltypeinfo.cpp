@@ -6,8 +6,6 @@
 #include <QtCore/qdebug.h>
 #include <QtCore/qhash.h>
 
-#include <sbkpep.h>
-
 #include <algorithm>
 
 namespace PySide::Qml {
@@ -45,11 +43,11 @@ QDebug operator<<(QDebug d, const QmlTypeInfo &i)
     d.nospace();
     d << "QmlTypeInfo(" << i.flags;
     if (i.foreignType)
-        d << ", foreignType=" << PepType_GetFullyQualifiedNameStr(i.foreignType);
+        d << ", foreignType=" << i.foreignType->tp_name;
     if (i.attachedType)
-        d << ", attachedType=" << PepType_GetFullyQualifiedNameStr(i.attachedType);
+        d << ", attachedType=" << i.attachedType->tp_name;
     if (i.extensionType)
-        d << ", extensionType=" << PepType_GetFullyQualifiedNameStr(i.extensionType);
+        d << ", extensionType=" << i.extensionType->tp_name;
     d << ')';
     return d;
 }

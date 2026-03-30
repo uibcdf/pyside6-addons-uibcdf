@@ -41,9 +41,9 @@ PYSIDE_API bool isCompiledMethod(PyObject *callback);
 
 struct debugPyTypeObject
 {
-    PYSIDE_API explicit debugPyTypeObject(PyTypeObject *o) noexcept;
+    PYSIDE_API explicit debugPyTypeObject(const PyTypeObject *o) noexcept;
 
-    PyTypeObject *m_object;
+    const PyTypeObject *m_object;
 };
 
 PYSIDE_API QDebug operator<<(QDebug debug, const debugPyTypeObject &o);
@@ -57,7 +57,6 @@ struct debugPyObject
 
 PYSIDE_API QDebug operator<<(QDebug debug, const debugPyObject &o);
 
-#if !defined(Py_LIMITED_API) || Py_LIMITED_API >= 0x030B0000
 struct debugPyBuffer
 {
     PYSIDE_API explicit debugPyBuffer(Py_buffer *b) noexcept;
@@ -66,7 +65,6 @@ struct debugPyBuffer
 };
 
 PYSIDE_API QDebug operator<<(QDebug debug, const debugPyBuffer &b);
-#endif // !Py_LIMITED_API || >= 3.11
 
 } //namespace PySide
 

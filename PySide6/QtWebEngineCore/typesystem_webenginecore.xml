@@ -52,9 +52,6 @@
     <enum-type name="SavePageFormat"/>
   </object-type>
 
-  <object-type name="QWebEngineExtensionInfo" since="6.10"/>
-  <object-type name="QWebEngineExtensionManager" since="6.10"/>
-
   <value-type name="QWebEngineFileSystemAccessRequest">
     <enum-type name="AccessFlag" flags="AccessFlags"/>
     <enum-type name="HandleType"/>
@@ -139,6 +136,8 @@
        <inject-documentation format="target" mode="append" file="../doc/qtwebenginecore.rst"
                              snippet="qwebenginepage-findframebyname"/>
     </add-function>
+    <modify-function signature="findText(const QString&amp;,QWebEnginePage::FindFlags,const std::function&lt;void(const QWebEngineFindTextResult&amp;)&gt;&amp;)" remove="yes"/>
+    <modify-function signature="findText(QString,QFlags&lt;QTextDocument::FindFlag&gt;)" remove="yes"/>
     <add-function signature="findText(const QString &amp;@subString@,QWebEnginePage::FindFlags@options@,PyCallable*@resultCallback@)">
         <inject-code class="target" position="beginning" file="../glue/qtwebenginecore.cpp"
                      snippet="qwebenginepage-findtext"/>
@@ -184,6 +183,7 @@
         <inject-documentation format="target" mode="append" file="../doc/qtwebenginecore.rst"
                               snippet="qwebenginepage-async-note"/>
     </add-function>
+    <modify-function signature="setBackgroundColor(QColor)" remove="yes"/>
   </object-type>
 
   <value-type name="QWebEnginePermission" since="6.8">
@@ -192,17 +192,9 @@
   </value-type>
 
   <object-type name="QWebEngineProfile">
-    <extra-includes>
-        <include file-name="QtWebEngineCore/QWebEngineNotification" location="global"/>
-    </extra-includes>
-    <inject-code class="native" position="beginning" file="../glue/qtwebenginecore.cpp"
-                 snippet="qwebengineprofile-functor"/>
     <enum-type name="HttpCacheType"/>
     <enum-type name="PersistentCookiesPolicy"/>
     <enum-type name="PersistentPermissionsPolicy" since="6.8"/>
-    <add-function signature="setNotificationPresenter(PyCallable* @notificationPresenter@)">
-      <inject-code class="target" position="beginning" file="../glue/qtwebenginecore.cpp" snippet="qwebengineprofile-setnotificationpresenter"/>
-    </add-function>
   </object-type>
 
   <object-type name="QWebEngineProfileBuilder" since="6.9"/>
@@ -256,6 +248,8 @@
       <enum-type name="Syntax"/>
       <enum-type name="SpecialPort"/>
       <enum-type name="Flag" flags="Flags"/>
+      <modify-function signature="flags()const" remove="yes"/>
+      <modify-function signature="setFlags(Flags)" remove="yes"/>
   </value-type>
 
   <object-type name="QWebEngineUrlSchemeHandler"/>

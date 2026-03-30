@@ -10,7 +10,6 @@
 #include "pysiderephandler_p.h"
 
 #include <basewrapper.h>
-#include <sbkpep.h>
 #include <sbkconverter.h>
 #include <sbkstring.h>
 
@@ -25,9 +24,6 @@
 
 #include <QtRemoteObjects/qremoteobjectpendingcall.h>
 #include <QtRemoteObjects/qremoteobjectreplica.h>
-
-#include <cstring>
-#include <cctype>
 
 using namespace Shiboken;
 
@@ -171,7 +167,7 @@ struct SourceDefs
                 auto name = callData->name.sliced(4);
                 auto index = metaObject->indexOfProperty(name.constData());
                 if (index < 0) {
-                    name[0] = std::tolower(name[0]);  // Try lower case
+                    name[0] = tolower(name[0]);  // Try lower case
                     index = metaObject->indexOfProperty(name.constData());
                 }
                 // It is possible a .rep names a Slot "push" or "pushSomething" that
@@ -236,7 +232,7 @@ struct ReplicaDefs
             PyObject *name = nullptr;
             static PyTypeObject *nodeType = Shiboken::Conversions::getPythonTypeObject("QRemoteObjectNode");
             if (!PyArg_UnpackTuple(args, "Replica.__init__", 2, 3, &node, &constructorType, &name) ||
-                !PySide::inherits(Py_TYPE(node), PepType_GetFullyQualifiedNameStr(nodeType))) {
+                !PySide::inherits(Py_TYPE(node), nodeType->tp_name)) {
                 PyErr_SetString(PyExc_TypeError,
                                 "Replicas can be initialized with no arguments or by node.acquire only");
                 return -1;
@@ -382,7 +378,7 @@ PyTypeObject *createDynamicClassImpl(QMetaObject *meta)
 
     auto fullTypeName = QByteArray{T::getTypePrefix()} + meta->className();
     PyType_Spec spec = {
-        qstrdup(fullTypeName.constData()),
+        fullTypeName.constData(),
         0,
         0,
         Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HAVE_GC,
@@ -482,9 +478,9 @@ PyTypeObject *createDynamicClassImpl(QMetaObject *meta)
 PyTypeObject *createDynamicClass(QMetaObject *meta, PyObject *properties_capsule)
 {
     bool isSource;
-    if (std::strncmp(meta->superClass()->className(), "QObject", 7) == 0) {
+    if (strncmp(meta->superClass()->className(), "QObject", 7) == 0) {
         isSource = true;
-    } else if (std::strncmp(meta->superClass()->className(), "QRemoteObjectReplica", 20) == 0) {
+    } else if (strncmp(meta->superClass()->className(), "QRemoteObjectReplica", 20) == 0) {
         isSource = false;
     } else {
         PyErr_SetString(PyExc_RuntimeError,

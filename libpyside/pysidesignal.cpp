@@ -9,14 +9,12 @@
 #include "pysidestaticstrings.h"
 #include "qobjectconnect.h"
 #include "signalmanager.h"
-#include "pysideqenum.h"
 
 #include <autodecref.h>
 #include <helper.h>
 #include <pep384ext.h>
 #include <sbkconverter.h>
 #include <sbkenum.h>
-#include <sbkerrors.h>
 #include <sbkstaticstrings.h>
 #include <sbkstring.h>
 #include <sbktypefactory.h>
@@ -99,7 +97,7 @@ static bool connection_Check(PyObject *o)
     static QByteArray typeName = QByteArrayLiteral("PySide")
         + QByteArray::number(QT_VERSION_MAJOR)
         + QByteArrayLiteral(".QtCore.QMetaObject.Connection");
-    return std::strcmp(PepType_GetFullyQualifiedNameStr(Py_TYPE(o)), typeName.constData()) == 0;
+    return std::strcmp(o->ob_type->tp_name, typeName.constData()) == 0;
 }
 
 static std::optional<QByteArrayList> parseArgumentNames(PyObject *argArguments)
@@ -440,17 +438,17 @@ static FunctionArgumentsResult extractFunctionArgumentsFromSlot(PyObject *slot)
         // Not retaining a reference inline with what PepFunction_GetName does.
         Py_DECREF(ret.functionName);
 
-        auto *obObjCode = PyObject_GetAttr(ret.function, PySide::PySideMagicName::code());
-        ret.objCode = reinterpret_cast<PepCodeObject *>(obObjCode);
+        ret.objCode = reinterpret_cast<PepCodeObject *>(
+                    PyObject_GetAttr(ret.function, PySide::PySideMagicName::code()));
         // Not retaining a reference inline with what PyFunction_GET_CODE does.
-        Py_XDECREF(obObjCode);
+        Py_XDECREF(ret.objCode);
 
         // Should not happen, but lets handle it gracefully, maybe Nuitka one day
         // makes these optional, or somebody defined a type named like it without
         // it being actually being that.
         if (ret.objCode == nullptr)
             ret.function = nullptr;
-    } else if (std::strcmp(PepType_GetFullyQualifiedNameStr(Py_TYPE(slot)), "compiled_function") == 0) {
+    } else if (strcmp(Py_TYPE(slot)->tp_name, "compiled_function") == 0) {
         ret.isMethod = false;
         ret.function = slot;
 
@@ -458,10 +456,10 @@ static FunctionArgumentsResult extractFunctionArgumentsFromSlot(PyObject *slot)
         // Not retaining a reference inline with what PepFunction_GetName does.
         Py_DECREF(ret.functionName);
 
-        auto *obObjCode = PyObject_GetAttr(ret.function, PySide::PySideMagicName::code());
-        ret.objCode = reinterpret_cast<PepCodeObject *>(obObjCode);
+        ret.objCode = reinterpret_cast<PepCodeObject *>(
+                    PyObject_GetAttr(ret.function, PySide::PySideMagicName::code()));
         // Not retaining a reference inline with what PyFunction_GET_CODE does.
-        Py_XDECREF(obObjCode);
+        Py_XDECREF(ret.objCode);
 
         // Should not happen, but lets handle it gracefully, maybe Nuitka one day
         // makes these optional, or somebody defined a type named like it without
@@ -541,8 +539,7 @@ static PyObject *signalInstanceConnect(PyObject *self, PyObject *args, PyObject 
         return nullptr;
 
     Qt::ConnectionType connectionType = Qt::AutoConnection;
-    if (type != nullptr
-        && qstrcmp(PepType_GetFullyQualifiedNameStr(Py_TYPE(type)), "ConnectionType") == 0) {
+    if (type != nullptr && qstrcmp(Py_TYPE(type)->tp_name, "ConnectionType") == 0) {
         static SbkConverter *connectionTypeConv =
             Shiboken::Conversions::getConverter("Qt::ConnectionType");
         Q_ASSERT(connectionTypeConv);
@@ -669,9 +666,13 @@ static PyObject *signalInstanceGetItem(PyObject *self, PyObject *key)
 static inline void warnDisconnectFailed(PyObject *aSlot, const QByteArray &signature)
 {
     if (PyErr_Occurred() != nullptr) { // avoid "%S" invoking str() when an error is set.
-        Shiboken::Errors::Stash errorStash;
+        PyObject *exc{};
+        PyObject *inst{};
+        PyObject *tb{};
+        PyErr_Fetch(&exc, &inst, &tb);
         PyErr_WarnFormat(PyExc_RuntimeWarning, 0, "Failed to disconnect (%s) from signal \"%s\".",
                          Py_TYPE(aSlot)->tp_name, signature.constData());
+        PyErr_Restore(exc, inst, tb);
     } else {
         PyErr_WarnFormat(PyExc_RuntimeWarning, 0, "Failed to disconnect (%S) from signal \"%s\".",
                          aSlot, signature.constData());
@@ -907,26 +908,23 @@ static const char *SignalInstance_SignatureStrings[] = {
 
 void init(PyObject *module)
 {
-    auto *metaSignalType = PySideMetaSignal_TypeF();
-    if (InitSignatureStrings(metaSignalType, MetaSignal_SignatureStrings) < 0)
+    if (InitSignatureStrings(PySideMetaSignal_TypeF(), MetaSignal_SignatureStrings) < 0)
         return;
-    auto *obMetaSignalType = reinterpret_cast<PyObject *>(metaSignalType);
-    Py_INCREF(obMetaSignalType);
-    PepModule_AddType(module, metaSignalType);
+    Py_INCREF(PySideMetaSignal_TypeF());
+    auto *obMetaSignal_Type = reinterpret_cast<PyObject *>(PySideMetaSignal_TypeF());
+    PyModule_AddObject(module, "MetaSignal", obMetaSignal_Type);
 
-    auto *signalType = PySideSignal_TypeF();
-    if (InitSignatureStrings(signalType, Signal_SignatureStrings) < 0)
+    if (InitSignatureStrings(PySideSignal_TypeF(), Signal_SignatureStrings) < 0)
         return;
-    auto *obSignalType = reinterpret_cast<PyObject *>(signalType);
-    Py_INCREF(obSignalType);
-    PepModule_AddType(module, signalType);
+    Py_INCREF(PySideSignal_TypeF());
+    auto *obSignal_Type = reinterpret_cast<PyObject *>(PySideSignal_TypeF());
+    PyModule_AddObject(module, "Signal", obSignal_Type);
 
-    auto *signalInstanceType = PySideSignalInstance_TypeF();
-    if (InitSignatureStrings(signalInstanceType, SignalInstance_SignatureStrings) < 0)
+    if (InitSignatureStrings(PySideSignalInstance_TypeF(), SignalInstance_SignatureStrings) < 0)
         return;
-    auto *obSignalInstanceType = reinterpret_cast<PyObject *>(signalInstanceType);
-    Py_INCREF(obSignalInstanceType);
-    PepModule_AddType(module, signalInstanceType);
+    Py_INCREF(PySideSignalInstance_TypeF());
+    auto *obSignalInstance_Type = reinterpret_cast<PyObject *>(PySideSignalInstance_TypeF());
+    PyModule_AddObject(module, "SignalInstance", obSignalInstance_Type);
 }
 
 bool checkType(PyObject *pyObj)
@@ -990,6 +988,23 @@ void updateSourceObject(PyObject *source)
         return;
 }
 
+// PYSIDE-2840: For an enum registered in Qt, return the C++ name.
+// Ignore flags here; their underlying enums are of Python type flags anyways.
+static QByteArray getQtEnumTypeName(PyTypeObject *type)
+{
+    if (!Shiboken::Enum::checkType(type))
+        return {};
+
+    Shiboken::AutoDecRef qualName(PyObject_GetAttr(reinterpret_cast<PyObject *>(type),
+                                                   Shiboken::PyMagicName::qualname()));
+    QByteArray result = Shiboken::String::toCString(qualName.object());
+    result.replace(".", "::");
+
+    const auto metaType = QMetaType::fromName(result);
+    return metaType.isValid() && metaType.flags().testFlag(QMetaType::IsEnumeration)
+        ? result : QByteArray{};
+}
+
 QByteArray getTypeName(PyObject *obType)
 {
     if (PyType_Check(obType)) {
@@ -1009,7 +1024,7 @@ QByteArray getTypeName(PyObject *obType)
             return QByteArrayLiteral("QVariantList");
         if (type == &PyDict_Type)
             return QByteArrayLiteral("QVariantMap");
-        QByteArray enumName = PySide::QEnum::getTypeName(type);
+        QByteArray enumName = getQtEnumTypeName(type);
         return enumName.isEmpty() ? "PyObject"_ba : enumName;
     }
     if (obType == Py_None) // Must be checked before as Shiboken::String::check accepts Py_None
@@ -1263,7 +1278,7 @@ QByteArray getCallbackSignature(QMetaMethod signal, QObject *receiver,
             prefix += '(';
             for (int i = 0; i < mo->methodCount(); i++) {
                 QMetaMethod me = mo->method(i);
-                if ((std::strncmp(me.methodSignature(), prefix, prefix.size()) == 0) &&
+                if ((strncmp(me.methodSignature(), prefix, prefix.size()) == 0) &&
                     QMetaObject::checkConnectArgs(signal, me.methodSignature())) {
                     numArgs = me.parameterTypes().size() + useSelf;
                     break;
@@ -1283,7 +1298,7 @@ QByteArray getCallbackSignature(QMetaMethod signal, QObject *receiver,
             prefix += '(';
             for (int i = 0, count = mo->methodCount(); i < count; ++i) {
                 QMetaMethod me = mo->method(i);
-                if ((std::strncmp(me.methodSignature(), prefix, prefix.size()) == 0) &&
+                if ((strncmp(me.methodSignature(), prefix, prefix.size()) == 0) &&
                     QMetaObject::checkConnectArgs(signal, me)) {
                     numArgs = me.parameterTypes().size() + useSelf;
                     break;

@@ -9,7 +9,6 @@
 #include <autodecref.h>
 #include <basewrapper.h>
 #include <sbkconverter.h>
-#include <sbkpep.h>
 #include <sbktypefactory.h>
 #include <signature.h>
 
@@ -86,10 +85,8 @@ void init(PyObject *module)
     if (InitSignatureStrings(PySideMetaFunction_TypeF(), MetaFunction_SignatureStrings) < 0)
         return;
 
-    auto *metaFunctionType = PySideMetaFunction_TypeF();
-    auto *obMetaFunctionType = reinterpret_cast<PyObject *>(metaFunctionType);
-    Py_INCREF(obMetaFunctionType);
-    PepModule_AddType(module, metaFunctionType);
+    Py_INCREF(PySideMetaFunction_TypeF());
+    PyModule_AddObject(module, "MetaFunction", reinterpret_cast<PyObject *>(PySideMetaFunction_TypeF()));
 }
 
 PySideMetaFunction *newObject(QObject *source, int methodIndex)

@@ -74,7 +74,7 @@ struct PodDefs
     static PyObject *tp_repr(PyObject *self)
     {
         auto *type = Py_TYPE(self);
-        std::string repr(PepType_GetFullyQualifiedNameStr(type));
+        std::string repr(type->tp_name);
         repr += "(";
         for (Py_ssize_t i = 0; i < PyTuple_Size(self); ++i) {
             if (i > 0)
@@ -203,9 +203,8 @@ PyTypeObject *createPodType(QMetaObject *meta)
             return nullptr;
         }
         auto *pyType = Conversions::getPythonTypeObject(metaType.name());
-        auto *obPyType = reinterpret_cast<PyObject *>(pyType);
-        Py_INCREF(obPyType);
-        PyTuple_SetItem(pyParamTypes, i, obPyType);
+        Py_INCREF(pyType);
+        PyTuple_SetItem(pyParamTypes, i, reinterpret_cast<PyObject *>(pyType));
     }
 
     auto *type = reinterpret_cast<PyTypeObject *>(obType);
@@ -230,8 +229,10 @@ PyTypeObject *createPodType(QMetaObject *meta)
                                               PyCapsule_GetPointer(capsule, "PropertyCapsule"));
                                       });
         auto *capsulePropObject = make_capsule_property(&method, capsule);
-        if (PyObject_SetAttrString(obType, metaProperty.name(), capsulePropObject) < 0)
+        if (PyObject_SetAttrString(reinterpret_cast<PyObject *>(type), metaProperty.name(),
+                                   capsulePropObject) < 0) {
             return nullptr;
+        }
 
         Py_DECREF(capsulePropObject);
     }
@@ -241,12 +242,11 @@ PyTypeObject *createPodType(QMetaObject *meta)
     // to the type's attributes. So we need to decrease the ref count on the type
     // after calling createConverter.
     auto *converter = Shiboken::Conversions::createConverter(type, cppToPython_POD_Tuple);
-    Py_DECREF(obType);
+    Py_DECREF(type);
     if (set_cleanup_capsule_attr_for_pointer(type, "_converter_capsule", converter) < 0)
         return nullptr;
     Shiboken::Conversions::registerConverterName(converter, meta->className());
-    Shiboken::Conversions::registerConverterName(converter,
-                                                 PepType_GetFullyQualifiedNameStr(type));
+    Shiboken::Conversions::registerConverterName(converter, type->tp_name);
     Shiboken::Conversions::addPythonToCppValueConversion(converter, pythonToCpp_Tuple_POD,
                                                          is_Tuple_PythonToCpp_POD_Convertible);
 

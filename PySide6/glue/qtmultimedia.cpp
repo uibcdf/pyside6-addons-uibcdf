@@ -22,7 +22,7 @@ const auto size = %CPPSELF.byteCount();
 %PYARG_0 = Shiboken::Buffer::newObject(data, size);
 // @snippet qaudiobuffer-const-data
 
-// @snippet qaudio-convertvolume
-const float result = QtAudio::convertVolume(%1, %2, %3);
-%PYARG_0 = %CONVERTTOPYTHON[float](result);
-// @snippet qaudio-convertvolume
+// @snippet qtaudio-namespace-compatibility-alias
+Py_INCREF(pyType);
+PyModule_AddObject(module, "QtAudio", reinterpret_cast<PyObject *>(pyType));
+// @snippet qtaudio-namespace-compatibility-alias

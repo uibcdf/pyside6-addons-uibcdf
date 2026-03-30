@@ -33,7 +33,7 @@ QArgData qArgDataFromPyType(PyObject *t)
     const char *typeName{};
     if (PyType_Check(t)) {
         auto *pyType = reinterpret_cast<PyTypeObject *>(t);
-        typeName = PepType_GetFullyQualifiedNameStr(pyType);
+        typeName = pyType->tp_name;
         result.metaType = PySide::qMetaTypeFromPyType(pyType);
     } else if (PyUnicode_Check(t)) {
         typeName = Shiboken::String::toCString(t);
@@ -225,6 +225,49 @@ return %out;
 // @snippet conversion-qmetatype-pytypeobject
 
 // @snippet qvariant-conversion
+static QVariant QVariant_convertToVariantMap(PyObject *map)
+{
+    Py_ssize_t pos = 0;
+    Shiboken::AutoDecRef keys(PyDict_Keys(map));
+    if (!QVariant_isStringList(keys))
+        return {};
+    PyObject *key{};
+    PyObject *value{};
+    QMap<QString,QVariant> ret;
+    while (PyDict_Next(map, &pos, &key, &value)) {
+        QString cppKey = %CONVERTTOCPP[QString](key);
+        QVariant cppValue = %CONVERTTOCPP[QVariant](value);
+        ret.insert(cppKey, cppValue);
+    }
+    return QVariant(ret);
+}
+static QVariant QVariant_convertToVariantList(PyObject *list)
+{
+    if (QVariant_isStringList(list)) {
+        QList<QString > lst = %CONVERTTOCPP[QList<QString>](list);
+        return QVariant(QStringList(lst));
+    }
+    QVariant valueList = QVariant_convertToValueList(list);
+    if (valueList.isValid())
+        return valueList;
+
+    if (PySequence_Size(list) < 0) {
+        // clear the error if < 0 which means no length at all
+        PyErr_Clear();
+        return {};
+    }
+
+    QList<QVariant> lst;
+    Shiboken::AutoDecRef fast(PySequence_Fast(list, "Failed to convert QVariantList"));
+    const Py_ssize_t size = PySequence_Size(fast.object());
+    for (Py_ssize_t i = 0; i < size; ++i) {
+        Shiboken::AutoDecRef pyItem(PySequence_GetItem(fast.object(), i));
+        QVariant item = %CONVERTTOCPP[QVariant](pyItem);
+        lst.append(item);
+    }
+    return QVariant(lst);
+}
+
 using SpecificConverter = Shiboken::Conversions::SpecificConverter;
 
 static std::optional<SpecificConverter> converterForQtType(const char *typeNameC)
@@ -280,7 +323,7 @@ QList<QByteArray> version = QByteArray(qVersion()).split('.');
 PyObject *pyQtVersion = PyTuple_New(3);
 for (int i = 0; i < 3; ++i)
     PyTuple_SetItem(pyQtVersion, i, PyLong_FromLong(version[i].toInt()));
-PepModule_Add(module, "__version_info__", pyQtVersion);
+PyModule_AddObject(module, "__version_info__", pyQtVersion);
 PyModule_AddStringConstant(module, "__version__", qVersion());
 // @snippet qt-version
 
@@ -390,7 +433,10 @@ static PyObject *qtmsghandler = nullptr;
 static void msgHandlerCallback(QtMsgType type, const QMessageLogContext &ctx, const QString &msg)
 {
     Shiboken::GilState state;
-    Shiboken::Errors::Stash errorStash;
+    PyObject *excType{};
+    PyObject *excValue{};
+    PyObject *excTraceback{};
+    PyErr_Fetch(&excType, &excValue, &excTraceback);
     Shiboken::AutoDecRef arglist(PyTuple_New(3));
     PyTuple_SetItem(arglist, 0, %CONVERTTOPYTHON[QtMsgType](type));
     PyTuple_SetItem(arglist, 1, %CONVERTTOPYTHON[QMessageLogContext &](ctx));
@@ -398,6 +444,7 @@ static void msgHandlerCallback(QtMsgType type, const QMessageLogContext &ctx, co
     const char *data = array.constData();
     PyTuple_SetItem(arglist, 2, %CONVERTTOPYTHON[const char *](data));
     Shiboken::AutoDecRef ret(PyObject_CallObject(qtmsghandler, arglist));
+    PyErr_Restore(excType, excValue, excTraceback);
 }
 // @snippet qt-messagehandler
 
@@ -491,12 +538,6 @@ QTime time(%4, %5, %6, %7);
                %8 == Qt::UTC ? QTimeZone(QTimeZone::UTC) : QTimeZone(QTimeZone::LocalTime));
 Shiboken::Warnings::warnDeprecated("QDateTime", "QDateTime(..., Qt::TimeSpec spec)");
 // @snippet qdatetime-3
-
-// @snippet qdatetime-4
-QDate date(%1, %2, %3);
-QTime time(%4, %5, %6, %7);
-%0 = new %TYPE(date, time, QTimeZone(%8));
-// @snippet qdatetime-4
 
 // @snippet qdatetime-topython
 QDate date = %CPPSELF.date();
@@ -629,12 +670,9 @@ if (PySlice_Check(_key) == 0)
                  "list indices must be integers or slices, not %.200s",
                  Py_TYPE(_key)->tp_name);
 
-Py_ssize_t start{};
-Py_ssize_t stop{};
-Py_ssize_t step{};
-if (PySlice_Unpack(_key, &start, &stop, &step) < 0)
+Py_ssize_t start, stop, step, slicelength;
+if (PySlice_GetIndicesEx(_key, %CPPSELF.size(), &start, &stop, &step, &slicelength) < 0)
     return nullptr;
-Py_ssize_t slicelength = PySlice_AdjustIndices(%CPPSELF.size(), &start, &stop, step);
 
 QByteArray ba;
 if (slicelength <= 0)
@@ -707,12 +745,9 @@ if (PySlice_Check(_key) == 0) {
     return -1;
 }
 
-Py_ssize_t start{};
-Py_ssize_t stop{};
-Py_ssize_t step{};
-if (PySlice_Unpack(_key, &start, &stop, &step) < 0)
+Py_ssize_t start, stop, step, slicelength;
+if (PySlice_GetIndicesEx(_key, %CPPSELF.size(), &start, &stop, &step, &slicelength) < 0)
     return -1;
-const Py_ssize_t slicelength = PySlice_AdjustIndices(%CPPSELF.size(), &start, &stop, step);
 
 // The parameter candidates are: bytes/str, bytearray, QByteArray itself.
 // Not supported are iterables containing ints between 0~255
@@ -1500,15 +1535,7 @@ double in = %CONVERTTOCPP[double](%in);
 
 // @snippet conversion-sbkobject
 // a class supported by QVariant?
-QMetaType metaType;
-if (Shiboken::Enum::check(%in)) {
-    const auto typeName = PySide::QEnum::getTypeName(Py_TYPE(%in));
-    if (!typeName.isEmpty())
-        metaType = QMetaType::fromName(typeName);
-}
-if (!metaType.isValid())
-  metaType = PySide::Variant::resolveMetaType(Py_TYPE(%in));
-
+const QMetaType metaType = QVariant_resolveMetaType(Py_TYPE(%in));
 bool ok = false;
 if (metaType.isValid()) {
     QVariant var(metaType);
@@ -1529,12 +1556,12 @@ if (!ok)
 // @snippet conversion-sbkobject
 
 // @snippet conversion-pydict
-QVariant ret = PySide::Variant::convertToVariantMap(%in);
+QVariant ret = QVariant_convertToVariantMap(%in);
 %out = ret.isValid() ? ret : QVariant::fromValue(PySide::PyObjectWrapper(%in));
 // @snippet conversion-pydict
 
 // @snippet conversion-pylist
-QVariant ret = PySide::Variant::convertToVariantList(%in);
+QVariant ret = QVariant_convertToVariantList(%in);
 %out = ret.isValid() ? ret : QVariant::fromValue(PySide::PyObjectWrapper(%in));
 // @snippet conversion-pylist
 
@@ -1544,7 +1571,7 @@ QVariant ret = PySide::Variant::convertToVariantList(%in);
 // @snippet conversion-pyobject
 
 // @snippet conversion-qjsonobject-pydict
-QVariant dict = PySide::Variant::convertToVariantMap(%in);
+QVariant dict = QVariant_convertToVariantMap(%in);
 QJsonValue val = QJsonValue::fromVariant(dict);
 %out = val.toObject();
 // @snippet conversion-qjsonobject-pydict
@@ -1825,43 +1852,6 @@ QDebug(&result).nospace() << "<PySide6.QtCore.QEvent(" << %CPPSELF->type() << ")
 if (Shiboken::Enum::check(%PYARG_2))
     cppArg1 = QVariant(int(Shiboken::Enum::getValue(%PYARG_2)));
 // @snippet qmetaproperty_write_enum
-
-// @snippet qmetaenum_value
-auto valueOpt = %CPPSELF.value64(%1);
-if (valueOpt.has_value()) {
-    const quint64 ullValue = valueOpt.value();
-    %PYARG_0 = PyLong_FromUnsignedLongLong(ullValue);
-} else {
-    const int lValue = %CPPSELF.%FUNCTION_NAME(%1);
-    %PYARG_0 = PyLong_FromLong(lValue);
-}
-// @snippet qmetaenum_value
-
-// @snippet qmetaenum_keytovalue
-PyObject *pyLongValue{};
-auto valueOpt = %CPPSELF.keyToValue64(%1);
-bool ok_ = valueOpt.has_value();
-if (ok_)
-    pyLongValue = PyLong_FromUnsignedLongLong(valueOpt.value());
-else
-    pyLongValue = PyLong_FromLong(%CPPSELF.%FUNCTION_NAME(%1, &ok_));
-%PYARG_0 = PyTuple_New(2);
-PyTuple_SetItem(%PYARG_0, 0, pyLongValue);
-PyTuple_SetItem(%PYARG_0, 1, %CONVERTTOPYTHON[bool](ok_));
-// @snippet qmetaenum_keytovalue
-
-// @snippet qmetaenum_keystovalue
-PyObject *pyLongValue{};
-auto valueOpt = %CPPSELF.keysToValue64(%1);
-bool ok_ = valueOpt.has_value();
-if (ok_)
-    pyLongValue = PyLong_FromUnsignedLongLong(valueOpt.value());
-else
-    pyLongValue = PyLong_FromLong(%CPPSELF.%FUNCTION_NAME(%1, &ok_));
-%PYARG_0 = PyTuple_New(2);
-PyTuple_SetItem(%PYARG_0, 0, pyLongValue);
-PyTuple_SetItem(%PYARG_0, 1, %CONVERTTOPYTHON[bool](ok_));
-// @snippet qmetaenum_keystovalue
 
 // @snippet qdatastream-read-bytes
 QByteArray data;
@@ -2182,9 +2172,7 @@ Q_IMPORT_PLUGIN(QDarwinCalendarPermissionPlugin)
 // @snippet qt-modifier
 PyObject *_inputDict = PyDict_New();
 // Note: The builtins line is no longer needed since Python 3.10. Undocumented!
-Shiboken::AutoDecRef builtins(PepEval_GetFrameBuiltins());
-PyDict_SetItemString(_inputDict, "__builtins__", builtins.object());
-builtins.reset(nullptr);
+PyDict_SetItemString(_inputDict, "__builtins__", PyEval_GetBuiltins());
 PyDict_SetItemString(_inputDict, "QtCore", module);
 PyDict_SetItemString(_inputDict, "Qt", reinterpret_cast<PyObject *>(pyType));
 // Explicitly not dereferencing the result.
@@ -2231,7 +2219,7 @@ if (%CPPSELF.next()) {
 // @snippet qdirlistingiterator-next
 
 // @snippet qdirlisting-direntry-repr
-QByteArray result = '<' + QByteArray(PepType_GetFullyQualifiedNameStr(Py_TYPE(%PYSELF)))
+QByteArray result = '<' + QByteArray(Py_TYPE(%PYSELF)->tp_name)
                     + " object at 0x"
                     + QByteArray::number(quintptr(%PYSELF), 16) + " (\""
                     + %CPPSELF.absoluteFilePath().toUtf8() + "\")>";
@@ -2255,252 +2243,3 @@ if (PySequence_Check(%PYARG_0) != 0 && PySequence_Size(%PYARG_0) == 2) {
 PyTuple_SetItem(%PYARG_0, 0, %CONVERTTOPYTHON[%RETURN_TYPE](%0));
 PyTuple_SetItem(%PYARG_0, 1, %CONVERTTOPYTHON[qintptr](*result_out));
 // @snippet return-native-eventfilter
-
-
-// @snippet qrangemodel-wrapper
-// Import the template constructors
-using QRangeModel::QRangeModel;
-// @snippet qrangemodel-wrapper
-
-// @snippet qrangemodel-helper-functions
-template <class T>
-static inline QSpan<T> createSpan(void *vData, Py_ssize_t size)
-{
-    auto *data = reinterpret_cast<T *>(vData);
-    return QSpan<T>{data, data + size};
-}
-
-// Simple 2d table range for creating a QRangeModel
-// (potentially replaceable by a std::mdspan in C++ 23).
-template <class T>
-class TableRange
-{
-    struct TableData
-    {
-        T *data = nullptr;
-        qsizetype rowCount = -1;
-        qsizetype columCount = -1;
-    };
-
-public:
-    explicit TableRange(void *data, qsizetype rowCount, qsizetype columCount) :
-        m_data{reinterpret_cast<T *>(data), rowCount, columCount} {}
-
-    class Iterator
-    {
-    public:
-        using value_type = QSpan<T>;
-        using size_type = qsizetype;
-        using reference = value_type;
-        using pointer = value_type;
-        using difference_type = std::ptrdiff_t;
-        using iterator_category = std::random_access_iterator_tag;
-
-        explicit Iterator(const TableData &data, size_type row) noexcept:
-            m_data(data), m_row(row) {}
-
-        Iterator() = default;
-
-        constexpr Iterator &operator++() noexcept
-        {
-            Q_ASSERT(m_row < m_data.rowCount);
-            ++m_row;
-            return *this;
-        }
-
-        constexpr Iterator operator++(int) noexcept
-        {
-            Q_ASSERT(m_row < m_data.rowCount);
-            auto copy = *this;
-            ++m_row;
-            return copy;
-        }
-
-        constexpr Iterator &operator--() noexcept
-        {
-            Q_ASSERT(m_row > 0);
-            --m_row;
-            return *this;
-        }
-
-        constexpr Iterator operator--(int) noexcept
-        {
-            Q_ASSERT(m_row > 0);
-            auto copy = *this;
-            --m_row;
-            return copy;
-        }
-
-        Iterator &operator+=(difference_type i)
-        {
-            const auto row = m_row + i;
-            Q_ASSERT(row >= 0 && row <= m_data.rowCount);
-            m_row = row;
-            return *this;
-        }
-
-        Iterator &operator-=(difference_type i)
-        {
-            const auto row = m_row - i;
-            Q_ASSERT(row >= 0 && row <= m_data.rowCount);
-            m_row = row;
-            return *this;
-        }
-
-        Iterator operator+(difference_type i) const
-        {
-            const auto row = m_row + i;
-            Q_ASSERT(row >= 0 && row <= m_data.rowCount);
-            return {m_data, row};
-        }
-
-        Iterator operator-(difference_type i) const
-        {
-            const auto row = m_row - i;
-            Q_ASSERT(row >= 0 && row <= m_data.rowCount);
-            return {m_data, row};
-        }
-
-        difference_type operator-(const Iterator &it) const { return m_row - it.m_row; } // std::distance
-
-        reference operator*() const noexcept
-        {
-            auto *rowStart = m_data.data + m_row * m_data.columCount;
-            return {rowStart, rowStart + m_data.columCount};
-        }
-
-        [[nodiscard]] value_type operator[](difference_type i) const
-        {
-            auto *rowStart = m_data.data + (m_row + i) * m_data.columCount;
-            return {rowStart, rowStart + m_data.columCount};
-        }
-
-    private:
-        friend bool comparesEqual(const Iterator &lhs, const Iterator &rhs) noexcept
-        {
-            Q_ASSERT(lhs.m_data.data != nullptr);
-            Q_ASSERT(lhs.m_data.data == rhs.m_data.data);
-            return lhs.m_row == rhs.m_row;
-        }
-
-        friend Qt::strong_ordering compareThreeWay(const Iterator &lhs,
-                                                   const Iterator &rhs) noexcept
-        {
-            Q_ASSERT(lhs.m_data.data != nullptr);
-            Q_ASSERT(lhs.m_data.data == rhs.m_data.data);
-            return Qt::compareThreeWay(lhs.m_row, rhs.m_row);
-        }
-
-        Q_DECLARE_STRONGLY_ORDERED(Iterator)
-
-        TableData m_data;
-        size_type m_row = 0;
-    };
-
-    [[nodiscard]] Iterator begin() const { return Iterator(m_data, 0); }
-    [[nodiscard]] Iterator end() const   { return Iterator(m_data, m_data.rowCount); }
-
-private:
-    TableData m_data;
-};
-
-template <class RangeModel> // QRangeModelWrapper
-static RangeModel *createRangeModel(PyObject *in, QObject *parent)
-{
-    auto view = Shiboken::Numpy::View::fromPyObject(in);
-    if (!view) {
-        PyErr_SetString(PyExc_TypeError, "Invalid parameter or missing numpy support.");
-        return nullptr;
-    }
-    switch (view.ndim) {
-    case 1: {
-        const auto size = view.dimensions[0];
-        switch (view.type) {
-        case Shiboken::Numpy::View::Int16:
-            return new RangeModel(createSpan<short>(view.data, size), parent);
-        case Shiboken::Numpy::View::Unsigned16:
-            return new RangeModel(createSpan<unsigned short>(view.data, size), parent);
-        case Shiboken::Numpy::View::Int:
-            return new RangeModel(createSpan<int>(view.data, size), parent);
-        case Shiboken::Numpy::View::Unsigned:
-            return new RangeModel(createSpan<unsigned>(view.data, size), parent);
-        case Shiboken::Numpy::View::Int64:
-            return new RangeModel(createSpan<int64_t>(view.data, size), parent);
-        case Shiboken::Numpy::View::Unsigned64:
-            return new RangeModel(createSpan<uint64_t>(view.data, size), parent);
-        case Shiboken::Numpy::View::Float:
-            return new RangeModel(createSpan<float>(view.data, size), parent);
-        case Shiboken::Numpy::View::Double:
-            return new RangeModel(createSpan<double>(view.data, size), parent);
-        default:
-            PyErr_SetString(PyExc_TypeError, "Unsupported data type for one-dimensional arrays.");
-            return nullptr;
-        }
-    }
-    break;
-
-    case 2: {
-        const auto rows = view.dimensions[0];
-        const auto columns = view.dimensions[1];
-        switch (view.type) {
-        case Shiboken::Numpy::View::Int16:
-            return new RangeModel(TableRange<short>(view.data, rows, columns), parent);
-        case Shiboken::Numpy::View::Unsigned16:
-            return new RangeModel(TableRange<unsigned short>(view.data, rows, columns), parent);
-        case Shiboken::Numpy::View::Int:
-            return new RangeModel(TableRange<int>(view.data, rows, columns), parent);
-        case Shiboken::Numpy::View::Unsigned:
-            return new RangeModel(TableRange<unsigned>(view.data, rows, columns), parent);
-        case Shiboken::Numpy::View::Int64:
-            return new RangeModel(TableRange<int64_t>(view.data, rows, columns), parent);
-        case Shiboken::Numpy::View::Unsigned64:
-            return new RangeModel(TableRange<uint64_t>(view.data, rows, columns), parent);
-        case Shiboken::Numpy::View::Float:
-            return new RangeModel(TableRange<float>(view.data, rows, columns), parent);
-        case Shiboken::Numpy::View::Double:
-            return new RangeModel(TableRange<double>(view.data, rows, columns), parent);
-        default:
-            PyErr_SetString(PyExc_TypeError, "Unsupported data type for two-dimensional arrays.");
-            return nullptr;
-        }
-    }
-    break;
-    default:
-        PyErr_SetString(PyExc_TypeError, "Only one and two-dimensional arrays are supported.");
-        return nullptr;
-    }
-    return nullptr;
-}
-
-static bool isVariantList(const QVariant &v)
-{
-    return v.typeId() == QMetaType::QVariantList;
-};
-// @snippet qrangemodel-helper-functions
-
-// @snippet qrangemodel-numpy-constructor
-auto *model = createRangeModel<%TYPE>(%PYARG_1, %2);
-if (model == nullptr)
-    return -1;
-%0 = model;
-// @snippet qrangemodel-numpy-constructor
-
-// @snippet qrangemodel-sequence-constructor
-const auto vlOptional = PySide::Variant::pyListToVariantList(%PYARG_1);
-if (!vlOptional.has_value()) {
-    PyErr_SetString(PyExc_TypeError, "Unable convert input sequence.");
-    return -1;
-}
-
-const QVariantList &vList = vlOptional.value();
-if (!vList.isEmpty() && std::all_of(vList.cbegin(),  vList.cend(), isVariantList)) {
-    // Empirical: Transform QVariantList<QVariant(List)>  -> QList<QVariantList> for a table
-    QList<QVariantList> variantTable;
-    variantTable.reserve(vList.size());
-    for (const auto &rowV : vList)
-        variantTable.append(rowV.value<QVariantList>());
-    %0 = new %TYPE(variantTable, %2);
-} else {
-    %0 = new %TYPE(vList, %2);
-}
-// @snippet qrangemodel-sequence-constructor
