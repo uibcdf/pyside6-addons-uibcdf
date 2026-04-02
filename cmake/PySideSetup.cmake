@@ -250,7 +250,7 @@ else()
 endif()
 
 set(UIBCDF_PYSIDE_SITE_INCLUDE_DIR
-    "${UIBCDF_PYSIDE_SITE_ROOT}/PySide6_uibcdf/include")
+    "${CMAKE_INSTALL_PREFIX}/include/PySide6_uibcdf")
 set(UIBCDF_SHIBOKEN_SITE_INCLUDE_DIR
     "${CMAKE_INSTALL_PREFIX}/shiboken6_uibcdf/include")
 
