@@ -107,14 +107,64 @@ That decision is based on two observations:
 This means the reduced manifest is the more realistic candidate for first
 public packaging of the standalone family.
 
+## Source Build Fixes Applied (6.9.2)
+
+These issues were discovered and fixed during the first successful source build.
+They are documented here so the same fixes can be verified when porting to 6.10.x.
+
+### Fix 1: Essentials include dir path
+
+`cmake/PySideSetup.cmake` computed the path to the installed essentials headers
+as `$SP_DIR/PySide6_uibcdf/include`. That path does not exist in a conda build.
+
+The essentials package installs the generated `pyside6_qtXX_python.h` headers
+to `$PREFIX/include/PySide6_uibcdf/<ModuleName>/`. The correct cmake variable:
+
+```cmake
+set(UIBCDF_PYSIDE_SITE_INCLUDE_DIR
+    "${CMAKE_INSTALL_PREFIX}/include/PySide6_uibcdf")
+```
+
+The `file(GLOB ...)` loop that follows already walks subdirectories looking for
+`pyside6_*_python.h` files and adds those subdirs to the compile include path,
+so only the base path needed fixing.
+
+**When upgrading to 6.10.x:** check that `cmake/PySideSetup.cmake` still
+contains this path. If upstream changes the essentials install layout, update
+accordingly.
+
+### Fix 2: QtWebEngineProcess test path
+
+The recipe test originally checked:
+
+```
+test -f "$SP_DIR/PySide6_uibcdf/Qt/libexec/QtWebEngineProcess"
+```
+
+That path is the wheel-bundled layout. In a conda build, `QtWebEngineProcess`
+is installed by `qt6-webengine-uibcdf` to `$PREFIX/libexec/QtWebEngineProcess`.
+Qt itself locates the helper via `QLibraryInfo::LibraryExecutablesPath`, which
+resolves to `$PREFIX/libexec/` in a conda environment — no copy or symlink into
+the Python package directory is needed.
+
+The corrected test:
+
+```
+test -f "$PREFIX/libexec/QtWebEngineProcess"
+```
+
+**When upgrading to 6.10.x:** keep this test as-is unless the
+`qt6-webengine-uibcdf` install layout changes.
+
 ## How To Open A Future 6.10.x Line
 
 1. validate a coherent 6.10.x family environment first
 2. regenerate `PySide6_Addons` manifests from that environment
 3. vendor the matching `sources/pyside6` code
 4. update this repo's version line and recipe pins
-5. re-run the same manifest-driven smoke path before any release attempt
-6. test the full family together, not this repo in isolation only
+5. re-verify both fixes above (essentials include dir and WebEngineProcess path)
+6. re-run the same manifest-driven smoke path before any release attempt
+7. test the full family together, not this repo in isolation only
 
 ## Versioning and Build Numbers
 
