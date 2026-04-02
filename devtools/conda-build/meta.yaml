@@ -45,7 +45,7 @@ test:
     - test -f "$SP_DIR/PySide6_uibcdf/QtPositioning.abi3.so"
     - test -f "$SP_DIR/PySide6_uibcdf/QtWebEngineCore.abi3.so"
     - test -f "$SP_DIR/PySide6_uibcdf/QtWebEngineWidgets.abi3.so"
-    - test -f "$SP_DIR/PySide6_uibcdf/Qt/libexec/QtWebEngineProcess"
+    - test -f "$PREFIX/libexec/QtWebEngineProcess"
     - python -c "from PySide6_uibcdf.QtWebEngineWidgets import QWebEngineView; print(QWebEngineView.__module__)"
 
 about:
