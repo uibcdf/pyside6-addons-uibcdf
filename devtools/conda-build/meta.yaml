@@ -6,7 +6,7 @@ source:
   path: ../..
 
 build:
-  number: 0
+  number: 3
 
 requirements:
   build:
@@ -25,16 +25,16 @@ requirements:
     - libglx-devel
     - clangdev
     - llvmdev
-    - shiboken6-uibcdf ==6.9.2
-    - pyside6-essentials-uibcdf ==6.9.2
+    - shiboken6-uibcdf ==6.9.2 *_3
+    - pyside6-essentials-uibcdf ==6.9.2 *_3
   run:
     - python =3.13
     - qt6-main >=6.9.2,<6.10.0a0
     - qt6-positioning-uibcdf ==6.9.2
     - qt6-webengine-uibcdf ==6.9.2
     - libopengl
-    - shiboken6-uibcdf ==6.9.2
-    - pyside6-essentials-uibcdf ==6.9.2
+    - shiboken6-uibcdf ==6.9.2 *_3
+    - pyside6-essentials-uibcdf ==6.9.2 *_3
     - libgcc
     - libstdcxx
 
