@@ -156,51 +156,6 @@ test -f "$PREFIX/libexec/QtWebEngineProcess"
 **When upgrading to 6.10.x:** keep this test as-is unless the
 `qt6-webengine-uibcdf` install layout changes.
 
-## How To Open A Future 6.10.x Line
-
-1. validate a coherent 6.10.x family environment first
-2. regenerate `PySide6_Addons` manifests from that environment
-3. vendor the matching `sources/pyside6` code
-4. update this repo's version line and recipe pins
-5. re-verify both fixes above (essentials include dir and WebEngineProcess path)
-6. re-run the same manifest-driven smoke path before any release attempt
-7. test the full family together, not this repo in isolation only
-
-## Versioning and Build Numbers
-
-The `version` field in `meta.yaml` always tracks the upstream Qt-for-Python
-version (e.g. `6.9.2`). It changes only when the upstream version changes.
-
-The `build.number` field is the mechanism for shipping corrections to the same
-upstream version:
-
-- **Bug in the recipe, in patches, or in the typesystem/C++ sources**: increment
-  `build.number` by 1, keep `version` as-is.
-- **New upstream version** (e.g. 6.10.x): reset `build.number` to 0 and update
-  `version`.
-
-`conda update` / `mamba update` resolves packages by version first, then by
-build number within the same version, so users will automatically receive the
-corrected build when they run an update.
-
-All three packages in the family (`shiboken6-uibcdf`, `pyside6-essentials-uibcdf`,
-`pyside6-addons-uibcdf`) should be released together with the same build number
-whenever a correction touches the shared runtime (e.g. a `libshiboken` patch
-that affects all three).
-
-Upload to the `uibcdf` channel with:
-
-```bash
-anaconda upload <path-to-package.conda> --user uibcdf --channel uibcdf
-```
-
-## Things To Keep Stable
-
-- do not mix `Addons` payloads across family versions
-- treat `QWebEngineView` importability as a family-level check
-- keep the reduced standalone-focused manifest explicit unless a deliberate
-  decision is made to restore the full Addons payload
-- keep this note updated whenever the source extraction rule changes
 
 Current upstream subset staged in this repo:
 
@@ -248,26 +203,121 @@ Current upstream subset staged in this repo:
   - `QtWebSockets`
   - `QtWebView`
 
-## Pause Checkpoint
+## Build Completed (2026-04-04)
 
-Current active state before pausing:
+Build 3 completed successfully. Validated imports:
 
-- This repo already contains the clean `6.9.2` source line, the `_uibcdf` namespace split,
-  the reduced standalone-focused module set, and the Qt helper-package assumptions
-  (`qt6-positioning-uibcdf`, `qt6-webengine-uibcdf`).
-- `build.sh` now also includes a post-install relocation step intended to move any canonical
-  `site-packages/PySide6/...` install tree into `site-packages/PySide6_uibcdf/...`.
-- `meta.yaml` now asserts that `site-packages/PySide6/Qt` should not remain after installation.
+```python
+from PySide6_uibcdf.QtWebEngineWidgets import QWebEngineView
+from PySide6_uibcdf.QtWebChannel import QWebChannel
+from PySide6_uibcdf.QtPositioning import QGeoCoordinate
+```
 
-This repo should remain paused until `pyside6-essentials-uibcdf` is rebuilt successfully with the
-updated `_uibcdf` runtime layout.
+All three published to `uibcdf` conda channel as `py313h3fd9d12_3`.
 
-Exact next command after `Essentials` closes again:
+The addons build is fast (~5 min) because it only wraps the WebEngine/WebChannel/Positioning
+modules — shiboken does the heavy lifting in essentials.
 
-- `conda build /home/diego/repos@uibcdf/pyside6-addons-uibcdf/devtools/conda-build`
+## Local Build and Upload
 
-First things to verify when resuming:
+### Build (after shiboken6-uibcdf and pyside6-essentials-uibcdf are built)
 
-1. `PySide6_uibcdf/QtWebChannel.abi3.so` and the other suffixed addon modules are still produced
-2. `PySide6_uibcdf/Qt/libexec/QtWebEngineProcess` is present
-3. no canonical `PySide6/Qt/...` tree remains in the final package
+```bash
+cd /path/to/pyside6-addons-uibcdf
+conda build devtools/conda-build \
+    --channel conda-forge \
+    --channel uibcdf \
+    --channel local
+```
+
+Expected time: ~5 min with CPU_COUNT=14. Peak RAM: ~7 GB.
+
+`--channel local` must include the freshly-built essentials. If essentials was
+already uploaded to `uibcdf`, `--channel uibcdf` suffices instead.
+
+### Install locally for testing
+
+```bash
+conda install -n <env> \
+    /path/to/conda-bld/linux-64/pyside6-addons-uibcdf-6.9.2-*.conda
+```
+
+### Upload
+
+```bash
+anaconda upload \
+    /path/to/conda-bld/linux-64/pyside6-addons-uibcdf-6.9.2-*.conda \
+    --user uibcdf
+```
+
+The qt6 helper packages (`qt6-positioning-uibcdf`, `qt6-webengine-uibcdf`) should
+be uploaded alongside. They have no Python-version-specific build strings.
+
+### Full release sequence (all 5 packages)
+
+```bash
+anaconda upload \
+    /path/to/conda-bld/linux-64/shiboken6-uibcdf-6.9.2-*.conda \
+    /path/to/conda-bld/linux-64/pyside6-essentials-uibcdf-6.9.2-*.conda \
+    /path/to/conda-bld/linux-64/pyside6-addons-uibcdf-6.9.2-*.conda \
+    /path/to/conda-bld/linux-64/qt6-positioning-uibcdf-6.9.2-*.conda \
+    /path/to/conda-bld/linux-64/qt6-webengine-uibcdf-6.9.2-*.conda \
+    --user uibcdf
+```
+
+## How To Open A Future 6.10.x Line
+
+1. Validate a coherent 6.10.x family environment first.
+2. Regenerate `PySide6_Addons` manifests from that environment.
+3. Vendor the matching `sources/pyside6` code.
+4. Update this repo's version line and recipe pins.
+5. Re-verify both source build fixes (essentials include dir and WebEngineProcess path).
+6. Re-run the same manifest-driven smoke path before any release attempt.
+7. Test the full family together, not this repo in isolation.
+
+Key things that are unlikely to change between 6.9.2 and 6.10.x for addons:
+
+- `cmake/PySideSetup.cmake` essentials header path (`$PREFIX/include/PySide6_uibcdf`)
+- `$PREFIX/libexec/QtWebEngineProcess` location
+- The set of modules needed for molsysviewer standalone
+
+## Multi-Python and Multi-Platform
+
+The addons package is the simplest of the three for multi-platform work because
+it contains no shiboken patches — it only wraps PySide6 modules.
+
+### Multiple Python versions
+
+Same approach as essentials: change `python =3.13` → target version. No
+addons-specific fixes are Python-version-dependent.
+
+### macOS
+
+The `QtWebEngineProcess` is a native macOS executable. Its location may differ
+from Linux (`$PREFIX/libexec/` should be the same, but verify with a test build).
+
+QtWebEngine on macOS arm64 (Apple Silicon) is available in Qt 6.6+ and in
+conda-forge qt6 packages — but the conda-forge `qt6-webengine` arm64 availability
+should be checked before planning this port. In Qt 6.9.x, Chromium (embedded in
+QtWebEngine) is officially supported on macOS arm64.
+
+### Windows
+
+QtWebEngine on Windows requires additional system dependencies
+(`d3d11`, `d3dcompiler`, `opengl32`). The recipe will need `bld.bat` and the test
+commands will need adapting. This is the hardest part of Windows support for this
+family.
+
+## Versioning and Build Numbers
+
+Same convention as the rest of the family. Bump `build.number` for any fix;
+reset to 0 only on a new upstream version. Keep all three Python-binding packages
+synchronized to the same build number.
+
+## Things To Keep Stable
+
+- do not mix `Addons` payloads across family versions
+- treat `QWebEngineView` importability as a family-level check
+- keep the reduced standalone-focused manifest explicit unless a deliberate
+  decision is made to restore the full Addons payload
+- keep this note updated whenever the source extraction rule changes
