@@ -238,7 +238,7 @@ already uploaded to `uibcdf`, `--channel uibcdf` suffices instead.
 ### Install locally for testing
 
 ```bash
-conda install -n <env> \
+mamba install -n <env> \
     /path/to/conda-bld/linux-64/pyside6-addons-uibcdf-6.9.2-*.conda
 ```
 

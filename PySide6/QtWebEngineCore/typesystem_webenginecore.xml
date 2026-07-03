@@ -248,8 +248,6 @@
       <enum-type name="Syntax"/>
       <enum-type name="SpecialPort"/>
       <enum-type name="Flag" flags="Flags"/>
-      <modify-function signature="flags()const" remove="yes"/>
-      <modify-function signature="setFlags(Flags)" remove="yes"/>
   </value-type>
 
   <object-type name="QWebEngineUrlSchemeHandler"/>
