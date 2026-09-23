@@ -16,7 +16,7 @@ requirements:
     - ninja
     - pkg-config
   host:
-    - python =3.14
+    - python
     - qt6-main =6.10.1
     - qt6-positioning-uibcdf ==6.10.1
     - qt6-webengine-uibcdf ==6.10.1
@@ -28,7 +28,7 @@ requirements:
     - shiboken6-uibcdf ==6.10.1
     - pyside6-essentials-uibcdf ==6.10.1
   run:
-    - python =3.14
+    - python
     - qt6-main >=6.10.1,<6.11.0a0
     - qt6-positioning-uibcdf ==6.10.1
     - qt6-webengine-uibcdf ==6.10.1
@@ -39,6 +39,8 @@ requirements:
     - libstdcxx
 
 test:
+  source_files:
+    - devtools/smoke_pyside.py
   commands:
     - test ! -e "$SP_DIR/PySide6/Qt"
     - test -f "$SP_DIR/PySide6_uibcdf/QtWebChannel.abi3.so"
@@ -47,9 +49,10 @@ test:
     - test -f "$SP_DIR/PySide6_uibcdf/QtWebEngineWidgets.abi3.so"
     - test -f "$PREFIX/libexec/QtWebEngineProcess"
     - python -c "from PySide6_uibcdf.QtWebEngineWidgets import QWebEngineView; print(QWebEngineView.__module__)"
+    - python devtools/smoke_pyside.py
 
 about:
-  summary: "Experimental UIBCDF-aligned PySide6 Addons 6.10.1 package for Linux/Python 3.14."
+  summary: "Experimental UIBCDF-aligned PySide6 Addons 6.10.1 package for Linux."
   license: "LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"
   description: |
     Experimental source-built conda package for the standalone-critical Addons

@@ -12,11 +12,13 @@ five-package installation. A local HTML page loaded through
 `QWebEngineView` under Xvfb with Conda activation, and MolSysViewer's real
 Qt transport, window, and opt-in full-render tests passed in a separate
 Python 3.14 environment containing the five UIBCDF packages but no canonical
-PySide6. A separate local Linux/Python 3.11 regression experiment passed the
-five-package clean-install and WebEngine smoke gates, but its recipe is not
-yet the checked-in candidate. Python 3.12–3.13 regressions, macOS and Windows
-builds, and staged-channel validation remain before broader support or
-publication.
+PySide6. Separate local Linux/Python 3.11, 3.12, and 3.13 regression
+experiments passed five-package clean-install and WebEngine smoke gates.
+Those first builds used disposable recipe pin substitutions. The revised
+variant-selected Shiboken, Essentials, and Addons recipes have since passed
+a complete local Python 3.12 build and clean-install WebEngine smoke.
+The other three revised-recipe interpreter cells, macOS and Windows builds,
+and staged-channel validation remain before broader support or publication.
 
 The aligned 6.10.1 family is built in dependency order:
 

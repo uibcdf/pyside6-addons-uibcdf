@@ -20,7 +20,7 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    assert sys.version_info[:2] == (3, 14)
+    assert (3, 11) <= sys.version_info[:2] <= (3, 14)
     assert QGeoCoordinate(19.4, -99.1).isValid()
     assert QWebChannel.__module__ == "PySide6.QtWebChannel"
     assert QWebEngineProfile.__module__ == "PySide6.QtWebEngineCore"
@@ -39,7 +39,9 @@ def main() -> int:
         app.exec()
         assert loaded == [True], f"HTML did not load successfully: {loaded}"
 
-    print("PySide6 Addons 6.10.1 / Python 3.14 smoke passed")
+    print(
+        f"PySide6 Addons 6.10.1 / Python {sys.version_info.major}.{sys.version_info.minor} smoke passed"
+    )
     return 0
 
 

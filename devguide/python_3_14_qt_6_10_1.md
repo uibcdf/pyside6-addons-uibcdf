@@ -51,10 +51,13 @@ tag, GitHub Release, or Conda upload has been made from this branch.
   `uibcdf/pyside6-essentials-uibcdf#2`. It does not block the validated
   UIBCDF-only route.
 
-The reusable smoke is `devtools/smoke_py314.py`. Its WebEngine mode must be
+The reusable smoke is now `devtools/smoke_pyside.py`. Its WebEngine mode must be
 run from an activated Conda environment with a display or Xvfb. The package
 does **not** globally disable Chromium sandboxing; the flags above were only
 used for this local headless test.
+The revised recipe includes the no-display mode in its Conda package tests;
+the HTML-loading mode remains a separate clean-install gate because package
+build runners may not provide a display.
 
 ## Python 3.11 regression experiment
 
@@ -75,18 +78,62 @@ Xvfb attempt inside the restricted execution sandbox could not connect to
 its display; repeating that test with display permission passed. This was
 an execution-environment failure, not a demonstrated package defect.
 
-This is a Linux-64 Python 3.11 regression experiment, not a second release
-candidate: the checked-in recipe still targets 3.14, and the disposable
-3.11 recipe retains 3.14-specific descriptive text. Before publishing a
-multi-minor matrix, generalize those descriptions and smoke names, test the
-actual committed recipes, and repeat clean installs for every supported
-Python/platform cell. See [family build practices](qt_family_build_practices.md)
-for the build order, local-channel and disk-space lessons.
+The same disposable recipe substitution was repeated for Python 3.12 and
+3.13, using matching Shiboken and Essentials variants and the same native
+Qt Positioning/WebEngine 6.10.1 packages. Both Addons builds passed Conda
+package tests. The local Linux-64 artifacts were:
+
+| Python | Addons artifact suffix | SHA-256 |
+| --- | --- | --- |
+| 3.12 | `py312h3fd9d12_0` | `eadcc3e40d9d70f7de81942e7afb7d41815478432bf62536cf0b39e671131a37` |
+| 3.13 | `py313h3fd9d12_0` | `f0247c2f00a2de29424b5664c12967785cc2b3e0fdaf9991ccfcb91d9e8c4f17` |
+
+Independent offline environments selected the three matching local binding
+packages plus both native Qt packages, exact `qt6-main=6.10.1`, and the
+requested Python minor. Canonical `PySide6` was absent. Imports and
+`QGeoCoordinate` checks passed; the version-adjusted Addons smoke loaded
+local HTML in `QWebEngineView` under Xvfb for both minors. Chromium D-Bus
+and software-rendering warnings were nonfatal. The same evidence had
+already passed for 3.11 and 3.14.
+
+These are Linux-64 regression experiments, not additional release
+candidates. The branch recipe now selects Python from an explicit Conda
+`--python` variant, and the smoke path and output are interpreter-neutral.
+A no-download, non-finalized render produced distinct `py311`, `py312`,
+`py313`, and `py314` build strings with matching Python host variants. The
+revised recipe now includes the no-display Addons smoke in its package tests.
+
+On 23 September 2026, the **revised recipes themselves** were built in
+dependency order on Linux-64 with `--python 3.12` and `CPU_COUNT=12`.
+Shiboken, Essentials (1,043 compile steps), and Addons (129 steps) each
+passed Conda package tests. Their new local artifact SHA-256 values are:
+
+| Binding | Revised-recipe Python 3.12 SHA-256 |
+| --- | --- |
+| Shiboken | `1faa8deecc53c65b0275c4716e27e50286f6ab5e6ca69f740e979085af8a5887` |
+| Essentials | `45a398759f04c24e196e6e2ff82388eb1161a0cc83480c85df14be358d9dfcea` |
+| Addons | `edbe013fcac09b0e62e39d3beaa25b696d534b424414d6033c157d8ee8720dbd` |
+
+Finalized metadata for all three requires `python >=3.12,<3.13.0a0` and
+`python_abi 3.12.* *_cp312`. Addons also requires the aligned UIBCDF
+Shiboken, Essentials, Positioning, and WebEngine packages at 6.10.1.
+An independent offline environment installed Python 3.12.14 and the five
+local UIBCDF artifacts; canonical `PySide6` was absent. The revised smoke
+passed both import/Positioning checks and local HTML loading in WebEngine
+under Xvfb. The two native Qt packages and Shiboken/Essentials were
+recorded as selected from the indexed local channel. Conda recorded Addons
+from its local build directory, whose archive matched the copied channel
+artifact byte-for-byte. This is exact local-artifact evidence, **not** a
+five-package channel-provenance or staging claim. See
+[family build practices](qt_family_build_practices.md) for the build order,
+local-channel and disk-space lessons.
 
 ## Remaining gates
 
-1. Complete 3.12–3.13 regressions, turn the disposable 3.11 experiment into
-   a truthful committed recipe, and build/test on each supported platform.
+1. Build and test the revised variant-selected recipes on Python 3.11,
+   3.13, and 3.14; the revised 3.12 cell passed locally. Inspect finalized
+   runtime requirements and repeat the clean-install gate on each claimed
+   platform.
 2. Repeat the MolSysViewer Qt-host gate against exact staged-channel packages
    rather than local artifacts. The local transport, live window, resources,
    and full software-render gate have passed on Linux/Python 3.14.7.

@@ -22,10 +22,14 @@ filename or runtime string would not establish stable-ABI support. Build and
 test separate interpreter variants for Python 3.11, 3.12, 3.13, and 3.14
 unless a later, explicitly validated packaging contract replaces this one.
 Keep the same Python minor in all three binding recipes for a given cell.
-The current candidate recipes and some smoke-script names still say 3.14;
-a disposable pin substitution is only a regression experiment. Before a
-multi-minor release, make package descriptions and smoke names version-neutral
-or parameterized and test the resulting actual recipe in every cell.
+The candidate binding recipes now select their interpreter from Conda's
+explicit `--python` variant, and their smoke-script names are neutral. A
+no-download render confirms four distinct build strings and matching host
+Python variants. The earlier 3.11–3.13 full builds used disposable pin
+substitutions. A subsequent full build of the revised recipe passed for
+Python 3.12 on Linux, with correct finalized `python` and `python_abi`
+requirements. Build the revised recipe in the remaining interpreter and
+platform cells before staging.
 
 ## Space and parallelism
 
@@ -44,6 +48,7 @@ CONDA_PKGS_DIRS="$QT_BUILD_ROOT/pkgs" \
 TMPDIR="$QT_BUILD_ROOT/tmp" \
 CPU_COUNT=12 \
 conda build devtools/conda-build \
+  --python 3.14 \
   -c file:///absolute/path/to/required/local/channel \
   -c conda-forge --override-channels \
   --croot "$QT_BUILD_ROOT/component-python-cell"
