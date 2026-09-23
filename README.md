@@ -8,10 +8,12 @@ provided by their separate `qt6-*-uibcdf` packages.
 
 The `python-3.14-qt-6.10.1` branch is a **candidate**, not a public release.
 Its Linux-64/Python 3.14 build has passed Conda package tests and a clean
-five-package installation. A local HTML page also loaded through
-`QWebEngineView` under Xvfb with Conda activation. Python 3.11–3.13
-regression, macOS and Windows builds, and the MolSysViewer application-level
-Qt gate remain to be checked before claiming broader support or publishing.
+five-package installation. A local HTML page loaded through
+`QWebEngineView` under Xvfb with Conda activation, and MolSysViewer's real
+Qt transport, window, and opt-in full-render tests passed in a separate
+Python 3.14 environment containing the five UIBCDF packages but no canonical
+PySide6. Python 3.11–3.13 regression, macOS and Windows builds, and
+staged-channel validation remain before broader support or publication.
 
 The aligned 6.10.1 family is built in dependency order:
 
@@ -29,3 +31,10 @@ for provenance, local validation, and release limitations.
 Do not run `devtools/conda-build/build-and-upload.sh` for this candidate: it
 still represents the older direct-upload route. Publication needs a reviewed,
 coordinated family staging/release procedure.
+
+Canonical PySide6 co-installation is a separate future packaging decision:
+the Python import namespaces differ already, but some CMake, tool and shared
+data installation paths still overlap. See
+[`shiboken6-uibcdf#2`](https://github.com/uibcdf/shiboken6-uibcdf/issues/2)
+and
+[`pyside6-essentials-uibcdf#2`](https://github.com/uibcdf/pyside6-essentials-uibcdf/issues/2).

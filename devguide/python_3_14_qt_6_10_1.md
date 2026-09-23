@@ -38,6 +38,18 @@ tag, GitHub Release, or Conda upload has been made from this branch.
   process/resource paths and is not a valid runtime test.
 - The machine's system D-Bus socket is absent, causing a Chromium warning;
   the activated Xvfb HTML smoke nevertheless exited successfully.
+- MolSysViewer's own Linux/Python 3.14.7 real Qt transport, two-generation
+  payload, live-window and opt-in full-render tests passed under Xvfb in a
+  second environment containing the five UIBCDF Qt packages and no canonical
+  `pyside6`. The full Viewer Python suite passed 2,078 tests with 13 skips
+  in a separate environment that also had canonical `pyside6=6.10.1`; this
+  is useful regression evidence but not the UIBCDF-only package route.
+- That coexistence experiment exposed installed-path overlaps with canonical
+  PySide6 in the Shiboken and Essentials packages, despite the distinct
+  `PySide6_uibcdf` import namespace. The decision to namespace those paths
+  or forbid co-installation is tracked in `uibcdf/shiboken6-uibcdf#2` and
+  `uibcdf/pyside6-essentials-uibcdf#2`. It does not block the validated
+  UIBCDF-only route.
 
 The reusable smoke is `devtools/smoke_py314.py`. Its WebEngine mode must be
 run from an activated Conda environment with a display or Xvfb. The package
@@ -47,8 +59,9 @@ used for this local headless test.
 ## Remaining gates
 
 1. Run 3.11–3.13 regressions and build/test on each supported platform.
-2. Test the actual MolSysViewer optional Qt host against all five packages,
-   including resources and a representative viewer workflow.
+2. Repeat the MolSysViewer Qt-host gate against exact staged-channel packages
+   rather than local artifacts. The local transport, live window, resources,
+   and full software-render gate have passed on Linux/Python 3.14.7.
 3. Review the old direct-upload script and release workflow before use. The
    candidate cannot be promoted by treating a successful local build as a
    coordinated family release.
