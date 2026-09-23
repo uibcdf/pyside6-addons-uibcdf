@@ -11,6 +11,7 @@
 #include <autodecref.h>
 #include <gilstate.h>
 #include <sbkconverter.h>
+#include <sbkpep.h>
 #include <sbkstring.h>
 #include <sbktypefactory.h>
 #include <signature.h>
@@ -55,7 +56,7 @@ static PyTypeObject *createPySideQmlExtendedType()
         PySide::ClassDecorator::Methods<PySideQmlExtendedPrivate>::typeSlots();
 
     PyType_Spec PySideQmlExtendedType_spec = {
-        "2:PySide6.QtCore.qmlExtended",
+        "2:PySide6.QtCore.QmlExtended",
         sizeof(PySideClassDecorator),
         0,
         Py_TPFLAGS_DEFAULT,
@@ -95,7 +96,8 @@ static QObject *extensionFactory(QObject *o)
     auto *pyObjType = Py_TYPE(pyObj);
     const auto info = qmlTypeInfo(reinterpret_cast<PyObject *>(pyObjType));
     if (!info || info->extensionType == nullptr) {
-        qWarning("QmlExtended: Cannot find extension of %s.", pyObjType->tp_name);
+        qWarning("QmlExtended: Cannot find extension of %s.",
+                 PepType_GetFullyQualifiedNameStr(pyObjType));
         return nullptr;
     }
 
@@ -110,7 +112,7 @@ static QObject *extensionFactory(QObject *o)
 
     if (PyType_IsSubtype(pyResult->ob_type, qObjectType()) == 0) {
         qWarning("QmlExtended: Extension objects must inherit QObject, got %s.",
-                 pyResult->ob_type->tp_name);
+                 PepType_GetFullyQualifiedNameStr(pyResult->ob_type));
         return nullptr;
     }
 
@@ -121,12 +123,13 @@ static QObject *extensionFactory(QObject *o)
 
 void initQmlExtended(PyObject *module)
 {
-    if (InitSignatureStrings(PySideQmlExtended_TypeF(), qmlExtended_SignatureStrings) < 0)
+    auto *qmlExtendedType = PySideQmlExtended_TypeF();
+    if (InitSignatureStrings(qmlExtendedType, qmlExtended_SignatureStrings) < 0)
         return;
 
-    Py_INCREF(PySideQmlExtended_TypeF());
-    PyModule_AddObject(module, "QmlExtended",
-                       reinterpret_cast<PyObject *>(PySideQmlExtended_TypeF()));
+    auto *obQmlExtendedType = reinterpret_cast<PyObject *>(qmlExtendedType);
+    Py_INCREF(obQmlExtendedType);
+    PepModule_AddType(module, qmlExtendedType);
 }
 
 PySide::Qml::QmlExtensionInfo qmlExtendedInfo(PyObject *t,
@@ -139,7 +142,7 @@ PySide::Qml::QmlExtensionInfo qmlExtendedInfo(PyObject *t,
             result.factory = extensionFactory;
         } else {
             qWarning("Unable to retrieve meta object for %s",
-                     reinterpret_cast<PyTypeObject *>(t)->tp_name);
+                     PepType_GetFullyQualifiedNameStr(reinterpret_cast<PyTypeObject *>(t)));
         }
     }
     return result;

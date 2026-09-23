@@ -50,6 +50,7 @@ function(pyside_internal_find_host_shiboken_tools)
         list(APPEND "REQUIRED")
     endif()
 
+    set(SHIBOKEN6TOOLS_SKIP_FIND_DEPENDENCIES TRUE)
     find_package(
         Shiboken6Tools 6 CONFIG
         ${find_package_extra_args}
@@ -137,26 +138,6 @@ macro(collect_optional_modules)
         list(APPEND ALL_OPTIONAL_MODULES WebView)
     endif()
     list(APPEND ALL_OPTIONAL_MODULES 3DCore 3DRender 3DInput 3DLogic 3DAnimation 3DExtras)
-endmacro()
-
-macro(check_os)
-    set(ENABLE_UNIX "1")
-    set(ENABLE_MAC "0")
-    set(ENABLE_WIN "0")
-
-    # check if Android, if so, set ENABLE_UNIX=1
-    # this is needed to avoid including the wrapper specific to macOS when building for Android
-    # from a macOS host
-    if(NOT CMAKE_SYSTEM_NAME STREQUAL "Android")
-        if(CMAKE_HOST_APPLE)
-            set(ENABLE_MAC "1")
-        elseif(CMAKE_HOST_WIN32)
-            set(ENABLE_WIN "1")
-            set(ENABLE_UNIX "0")
-        elseif(NOT CMAKE_HOST_UNIX)
-            message(FATAL_ERROR "OS not supported")
-        endif()
-    endif()
 endmacro()
 
 macro(use_protected_as_public_hack)

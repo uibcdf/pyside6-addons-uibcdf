@@ -40,6 +40,7 @@ set(libpyside_HEADERS # installed below
     pysideslot_p.h
     pysidestaticstrings.h
     pysideutils.h
+    pysidevariantutils.h
     pysideweakref.h
     qobjectconnect.h
     signalmanager.h
@@ -59,6 +60,7 @@ set(libpyside_SRC
     pysidesignal.cpp
     pysideslot.cpp
     pysideproperty.cpp
+    pysidevariantutils.cpp
     pysideweakref.cpp
     pyside.cpp
     pyside_numpy.cpp
@@ -99,7 +101,7 @@ append_size_optimization_flags(pyside6)
 
 target_include_directories(pyside6 PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
-  $<INSTALL_INTERFACE:include/PySide6>
+  $<INSTALL_INTERFACE:PySide6/include>
 )
 
 target_compile_definitions(pyside6 PRIVATE -DQT_LEAN_HEADERS=1 -DQT_NO_KEYWORDS=1)
@@ -159,6 +161,7 @@ configure_package_config_file(
 set(PYSIDE_PYTHONPATH "${PYTHON_SITE_PACKAGES}/${BINDING_NAME}")
 set(PYSIDE_TYPESYSTEMS "${CMAKE_INSTALL_PREFIX}/share/PySide6${pyside6_SUFFIX}/typesystems")
 set(PYSIDE_GLUE "${CMAKE_INSTALL_PREFIX}/share/PySide6${pyside6_SUFFIX}/glue")
+set(PYSIDE_SOVERSION "${pyside6_library_so_version}")
 
 # Install-tree / relocatable package config file.
 configure_package_config_file(
@@ -174,14 +177,24 @@ configure_file("${CMAKE_CURRENT_SOURCE_DIR}/PySide6ConfigVersion.cmake.in"
                "${CMAKE_CURRENT_BINARY_DIR}/PySide6ConfigVersion.cmake" @ONLY)
 
 install(FILES ${libpyside_HEADERS}
-        DESTINATION include/${BINDING_NAME}${pyside6_SUFFIX})
+        DESTINATION ${BINDING_NAME}${pyside6_SUFFIX}/include)
 
+# build-time installation
 install(TARGETS pyside6 EXPORT PySide6Targets
                         LIBRARY DESTINATION "${LIB_INSTALL_DIR}"
                         ARCHIVE DESTINATION "${LIB_INSTALL_DIR}"
                         RUNTIME DESTINATION bin)
-install(EXPORT PySide6Targets NAMESPACE PySide6::
-        DESTINATION "${LIB_INSTALL_DIR}/cmake/PySide6")
+
+# wheel installation
+set_target_properties(pyside6 PROPERTIES
+    VERSION ${PYSIDE_SOVERSION})
+
+if(NOT is_pyside6_superproject_build)
+    install(TARGETS pyside6 EXPORT PySide6WheelTargets
+                            LIBRARY DESTINATION "PySide6"
+                            ARCHIVE DESTINATION "PySide6"
+                            RUNTIME DESTINATION "PySide6")
+endif()
 
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/pyside6${pyside6_SUFFIX}.pc"
         DESTINATION "${LIB_INSTALL_DIR}/pkgconfig")

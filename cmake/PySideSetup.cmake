@@ -57,6 +57,7 @@ set(BINDING_API_MINOR_VERSION "${pyside_MINOR_VERSION}")
 set(BINDING_API_MICRO_VERSION "${pyside_MICRO_VERSION}")
 set(BINDING_API_PRE_RELEASE_VERSION_TYPE "${pyside_PRE_RELEASE_VERSION_TYPE}")
 set(BINDING_API_PRE_RELEASE_VERSION "${pyside_PRE_RELEASE_VERSION}")
+set(pyside6_library_so_version "${SHIBOKEN_SO_VERSION}")
 
 # Detect if the Python interpreter is actually PyPy
 execute_process(
@@ -102,7 +103,8 @@ if(QFP_QT_HOST_PATH)
         endif()
     endif()
 endif()
-find_package(Qt6 REQUIRED COMPONENTS Core)
+# Find QtGui private headers for exposing some QPA classes
+find_package(Qt6 REQUIRED COMPONENTS Core CorePrivate Gui GuiPrivate)
 
 add_definitions(${Qt${QT_MAJOR_VERSION}Core_DEFINITIONS})
 
@@ -172,9 +174,12 @@ set (Qt${QT_MAJOR_VERSION}Widgets_FOUND "0")
 collect_essential_modules()
 collect_optional_modules()
 
+# Additional (non-Qt) modules implemented in PySide only
+set(PURE_PYTHON_MODULES Asyncio)
+
 # Modules to be built unless specified by -DMODULES on command line
 if(NOT MODULES)
-    set(MODULES "${ALL_ESSENTIAL_MODULES};${ALL_OPTIONAL_MODULES}")
+    set(MODULES "${ALL_ESSENTIAL_MODULES};${ALL_OPTIONAL_MODULES};${PURE_PYTHON_MODULES}")
     set(required_modules ${ALL_ESSENTIAL_MODULES})
     set(optional_modules ${ALL_OPTIONAL_MODULES})
 else()
@@ -184,6 +189,16 @@ endif()
 list(REMOVE_ITEM MODULES ${SKIP_MODULES})
 list(REMOVE_ITEM required_modules ${SKIP_MODULES})
 list(REMOVE_ITEM optional_modules ${SKIP_MODULES})
+
+# Non-Qt modules must be removed before find_packages tries to locate them.
+foreach(m IN LISTS PURE_PYTHON_MODULES)
+    set(DISABLE_Qt${m} 1)
+    if("Qt${m}" IN_LIST MODULES OR "${m}" IN_LIST MODULES)
+        set(DISABLE_Qt${m} 0)
+    endif()
+    list(FILTER MODULES EXCLUDE REGEX "^(Qt)?${m}$")
+    list(FILTER required_modules EXCLUDE REGEX "^(Qt)?${m}$")
+endforeach()
 
 find_package(Qt6
     COMPONENTS ${required_modules}
@@ -197,7 +212,7 @@ remove_skipped_modules()
 
 # Mark all non-collected modules as disabled. This is used for disabling tests
 # that depend on the disabled modules.
-foreach(m ${DISABLED_MODULES})
+foreach(m IN LISTS DISABLED_MODULES)
     set(DISABLE_Qt${m} 1)
 endforeach()
 
@@ -220,9 +235,6 @@ if(ENABLE_VERSION_SUFFIX)
 endif()
 
 # no more supported: include(${QT_USE_FILE})
-
-# Configure OS support
-check_os()
 
 # Define supported Qt Version
 set(SUPPORTED_QT_VERSION "${QT_VERSION_MAJOR}.${QT_VERSION_MINOR}.${QT_VERSION_PATCH}")
@@ -250,7 +262,7 @@ else()
 endif()
 
 set(UIBCDF_PYSIDE_SITE_INCLUDE_DIR
-    "${CMAKE_INSTALL_PREFIX}/include/PySide6_uibcdf")
+    "${CMAKE_INSTALL_PREFIX}/PySide6_uibcdf/include")
 set(UIBCDF_SHIBOKEN_SITE_INCLUDE_DIR
     "${CMAKE_INSTALL_PREFIX}/shiboken6_uibcdf/include")
 
@@ -291,8 +303,11 @@ set(GENERATOR_EXTRA_FLAGS
 use_protected_as_public_hack()
 
 # Build with Address sanitizer enabled if requested. This may break things, so use at your own risk.
-if(SANITIZE_ADDRESS AND NOT MSVC)
+if(SANITIZE_ADDRESS)
     setup_sanitize_address()
+endif()
+if(SANITIZE_THREAD)
+    setup_sanitize_thread()
 endif()
 
 find_package(Qt6 COMPONENTS Designer)

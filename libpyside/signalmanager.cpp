@@ -15,6 +15,7 @@
 #include <bindingmanager.h>
 #include <gilstate.h>
 #include <sbkconverter.h>
+#include <sbkpep.h>
 #include <sbkstring.h>
 #include <sbkstaticstrings.h>
 #include <sbkerrors.h>
@@ -37,7 +38,11 @@ using namespace Qt::StringLiterals;
 #error QSLOT_CODE and/or QSIGNAL_CODE changed! change the hardcoded stuff to the correct value!
 #endif
 
-static PyObject *metaObjectAttr = nullptr;
+PyObject *metaObjectAttr()
+{
+    static PyObject *const s = Shiboken::String::createStaticString("__METAOBJECT__");
+    return s;
+}
 
 static int pyObjectWrapperMetaTypeId = QMetaType::UnknownType;
 
@@ -251,7 +256,7 @@ PYSIDE_API QDebug operator<<(QDebug debug, const PyObjectWrapper &myObj)
     debug << '<';
     if (PyObject *ob = myObj) {
         const auto refs = Py_REFCNT(ob);
-        debug << Py_TYPE(ob)->tp_name << " at " << ob;
+        debug << PepType_GetFullyQualifiedNameStr(Py_TYPE(ob)) << " at " << ob;
         if (refs == UINT_MAX) // _Py_IMMORTAL_REFCNT
             debug << ", immortal";
         else
@@ -308,9 +313,6 @@ void SignalManager::init()
     Shiboken::Conversions::registerConverterName(converter, "object");
     Shiboken::Conversions::registerConverterName(converter, "PyObjectWrapper");
     Shiboken::Conversions::registerConverterName(converter, "PySide::PyObjectWrapper");
-
-    if (!metaObjectAttr)
-        metaObjectAttr = Shiboken::String::fromCString("__METAOBJECT__");
 }
 
 void SignalManager::setQmlMetaCallErrorHandler(QmlMetaCallErrorHandler handler)
@@ -352,6 +354,18 @@ void SignalManager::handleMetaCallError()
     Py_SetRecursionLimit(reclimit);
 }
 
+const char *metaObjectCallName(QMetaObject::Call call)
+{
+    static const char *names[] = {
+        "InvokeMetaMethod", "ReadProperty", "WriteProperty", "ResetProperty",
+        "CreateInstance", "IndexOfMethod", "RegisterPropertyMetaType",
+        "RegisterMethodArgumentMetaType", "BindableProperty", "CustomCall",
+        "ConstructInPlace"};
+    constexpr size_t count = sizeof(names)/sizeof(names[0]);
+    static_assert(QMetaObject::ConstructInPlace == count - 1);
+    return call >= 0 && call < count ? names[call] : "<unknown>";
+}
+
 // Handler for QMetaObject::ReadProperty/WriteProperty/ResetProperty:
 int SignalManagerPrivate::qtPropertyMetacall(QObject *object,
                                              QMetaObject::Call call,
@@ -384,25 +398,20 @@ int SignalManagerPrivate::qtPropertyMetacall(QObject *object,
     if (PyErr_Occurred()) {
         // PYSIDE-2160: An unknown type was reported. Indicated by StopIteration.
         if (PyErr_ExceptionMatches(PyExc_StopIteration)) {
-            PyObject *excType{};
-            PyObject *excValue{};
-            PyObject *excTraceback{};
-            PyErr_Fetch(&excType, &excValue, &excTraceback);
+            Shiboken::Errors::Stash errorStash;
             bool ign = call == QMetaObject::WriteProperty;
             PyErr_WarnFormat(PyExc_RuntimeWarning, 0,
                 ign ? "Unknown property type '%s' of QObject '%s' used in fset"
                     : "Unknown property type '%s' of QObject '%s' used in fget with %R",
-                pp->d->typeName.constData(), metaObject->className(), excValue);
+                pp->d->typeName.constData(), metaObject->className(), errorStash.getException());
             if (PyErr_Occurred())
                 Shiboken::Errors::storeErrorOrPrint();
-            Py_DECREF(excType);
-            Py_DECREF(excValue);
-            Py_XDECREF(excTraceback);
+            errorStash.release();
             return result;
         }
 
         qWarning().noquote().nospace()
-            << "An error occurred executing the property metacall " << call
+            << "An error occurred executing the property metacall " << metaObjectCallName(call)
             << " on property \"" << mp.name() << "\" of " << object;
         handleMetaCallError(object, &result);
     }
@@ -612,13 +621,13 @@ static MetaObjectBuilder *metaBuilderFromDict(PyObject *dict)
     // no GIL.
     // Note that "SignalManager::registerMetaMethodGetIndex" has write actions
     // that might involve the interpreter, but in that context the GIL is held.
-    if (!dict || !PyDict_Contains(dict, metaObjectAttr))
+    if (!dict || !PyDict_Contains(dict, metaObjectAttr()))
         return nullptr;
 
     // PYSIDE-813: The above assumption is not true in debug mode:
     // PyDict_GetItem would touch PyThreadState_GET and the global error state.
     // PyDict_GetItemWithError instead can work without GIL.
-    PyObject *pyBuilder = PyDict_GetItemWithError(dict, metaObjectAttr);
+    PyObject *pyBuilder = PyDict_GetItemWithError(dict, metaObjectAttr());
     return reinterpret_cast<MetaObjectBuilder *>(PyCapsule_GetPointer(pyBuilder, nullptr));
 }
 
@@ -692,7 +701,7 @@ static int addMetaMethod(QObject *source, const QByteArray &signature,
     if (dmo == nullptr) {
         dmo = new MetaObjectBuilder(Py_TYPE(pySelf), metaObject);
         PyObject *pyDmo = PyCapsule_New(dmo, nullptr, destroyMetaObject);
-        PyObject_SetAttr(pySelf, metaObjectAttr, pyDmo);
+        PyObject_SetAttr(pySelf, metaObjectAttr(), pyDmo);
         Py_DECREF(pyDmo);
     }
 
@@ -742,6 +751,12 @@ int SignalManager::registerMetaMethodGetIndexBA(QObject* source, const QByteArra
 
 const QMetaObject *SignalManager::retrieveMetaObject(PyObject *self)
 {
+#ifdef Py_GIL_DISABLED
+    // PYSIDE-2221: When working with disable-gil, it seems to be necessary
+    //              to hold the GIL. Maybe that is harmless here (check later).
+    // Thanks to Sam Gross who fixed most errors by pointing this out.
+    Shiboken::GilState gil;
+#endif
     // PYSIDE-803: Avoid the GIL in SignalManager::retrieveMetaObject
     // This function had the GIL. We do not use the GIL unless we have to.
     // metaBuilderFromDict accesses a Python dict, but in that context there

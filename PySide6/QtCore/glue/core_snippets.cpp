@@ -5,7 +5,9 @@
 #include "qtcorehelper.h"
 #include "pysideqobject.h"
 
-#include "shiboken.h"
+#include "sbkpython.h"
+#include "sbkconverter.h"
+#include "sbkpep.h"
 #ifndef Py_LIMITED_API
 #  include <datetime.h>
 #endif
@@ -19,111 +21,8 @@
 #include <QtCore/QObject>
 #include <QtCore/QRegularExpression>
 #include <QtCore/QStack>
-#include <QtCore/QVariant>
 
-// Helpers for QVariant conversion
-
-QMetaType QVariant_resolveMetaType(PyTypeObject *type)
-{
-    if (!PyObject_TypeCheck(type, SbkObjectType_TypeF()))
-        return {};
-    const char *typeName = Shiboken::ObjectType::getOriginalName(type);
-    if (!typeName)
-        return {};
-    const bool valueType = '*' != typeName[qstrlen(typeName) - 1];
-    // Do not convert user type of value
-    if (valueType && Shiboken::ObjectType::isUserType(type))
-        return {};
-    QMetaType metaType = QMetaType::fromName(typeName);
-    if (metaType.isValid())
-        return metaType;
-    // Do not resolve types to value type
-    if (valueType)
-        return {};
-    // Find in base types. First check tp_bases, and only after check tp_base, because
-    // tp_base does not always point to the first base class, but rather to the first
-    // that has added any python fields or slots to its object layout.
-    // See https://mail.python.org/pipermail/python-list/2009-January/520733.html
-    if (type->tp_bases) {
-        const auto size = PyTuple_Size(type->tp_bases);
-        Py_ssize_t i = 0;
-        // PYSIDE-1887, PYSIDE-86: Skip QObject base class of QGraphicsObject;
-        // it needs to use always QGraphicsItem as a QVariant type for
-        // QGraphicsItem::itemChange() to work.
-        if (qstrcmp(typeName, "QGraphicsObject*") == 0 && size > 1) {
-            auto *firstBaseType = reinterpret_cast<PyTypeObject *>(PyTuple_GetItem(type->tp_bases, 0));
-            if (SbkObjectType_Check(firstBaseType)) {
-                const char *firstBaseTypeName = Shiboken::ObjectType::getOriginalName(firstBaseType);
-                if (firstBaseTypeName != nullptr && qstrcmp(firstBaseTypeName, "QObject*") == 0)
-                    ++i;
-            }
-        }
-        for ( ; i < size; ++i) {
-            auto baseType = reinterpret_cast<PyTypeObject *>(PyTuple_GetItem(type->tp_bases, i));
-            const QMetaType derived = QVariant_resolveMetaType(baseType);
-            if (derived.isValid())
-                return derived;
-        }
-    } else if (type->tp_base) {
-        return QVariant_resolveMetaType(type->tp_base);
-    }
-    return {};
-}
-
-QVariant QVariant_convertToValueList(PyObject *list)
-{
-    if (PySequence_Size(list) < 0) {
-        // clear the error if < 0 which means no length at all
-        PyErr_Clear();
-        return {};
-    }
-
-    Shiboken::AutoDecRef element(PySequence_GetItem(list, 0));
-
-    auto *type = reinterpret_cast<PyTypeObject *>(element.object());
-    QMetaType metaType = QVariant_resolveMetaType(type);
-    if (!metaType.isValid())
-        return {};
-
-    const QByteArray listTypeName = QByteArrayLiteral("QList<") + metaType.name() + '>';
-    metaType = QMetaType::fromName(listTypeName);
-    if (!metaType.isValid())
-        return {};
-
-    Shiboken::Conversions::SpecificConverter converter(listTypeName);
-    if (!converter) {
-        qWarning("Type converter for: %s not registered.", listTypeName.constData());
-        return {};
-    }
-
-    QVariant var(metaType);
-    converter.toCpp(list, &var);
-    return var;
-}
-
-bool QVariant_isStringList(PyObject *list)
-{
-    if (!PySequence_Check(list)) {
-        // If it is not a list or a derived list class
-        // we assume that will not be a String list neither.
-        return false;
-    }
-
-    if (PySequence_Size(list) < 0) {
-        // clear the error if < 0 which means no length at all
-        PyErr_Clear();
-        return false;
-    }
-
-    Shiboken::AutoDecRef fast(PySequence_Fast(list, "Failed to convert QVariantList"));
-    const Py_ssize_t size = PySequence_Size(fast.object());
-    for (Py_ssize_t i = 0; i < size; ++i) {
-        Shiboken::AutoDecRef item(PySequence_GetItem(fast.object(), i));
-        if (PyUnicode_Check(item) == 0)
-            return false;
-    }
-    return true;
-}
+#include <cstring>
 
 // Helpers for qAddPostRoutine
 
@@ -246,10 +145,7 @@ QString qObjectTr(PyTypeObject *type, const char *sourceText, const char *disamb
         auto *type = reinterpret_cast<PyTypeObject *>(PyTuple_GetItem(mro, idx));
         if (type == sbkObjectType)
             continue;
-        const char *context = type->tp_name;
-        const char *dotpos = strrchr(context, '.');
-        if (dotpos != nullptr)
-            context = dotpos + 1;
+        const char *context = PepType_GetNameStr(type);
         result = QCoreApplication::translate(context, sourceText, disambiguation, n);
         if (result != oldResult)
             break;

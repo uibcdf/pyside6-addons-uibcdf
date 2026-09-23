@@ -10,6 +10,11 @@
   <load-typesystem name="templates/gui_common.xml" generate="no"/>
 
   <rejection class="^Q.*$" argument-type="^QPlatform.*$"/>
+
+  <extra-includes>
+      <include file-name="QtGui/qquaternion.h" location="global"/> <!-- for qFuzzyCompare -->
+  </extra-includes>
+
   <function signature="qAlpha(uint)"/>
   <function signature="qBlue(uint)"/>
   <function signature="qGray(int,int,int)"/>
@@ -120,6 +125,7 @@
       </add-function>
   </value-type>
 
+  <object-type name="QAccessibilityHints" since="6.10"/>
   <object-type name="QAccessibleActionInterface"/>
   <object-type name="QAccessibleAttributesInterface" since="6.8"/>
   <object-type name="QAccessibleEditableTextInterface"/>
@@ -474,10 +480,10 @@
     <modify-function signature="QPolygon(int,const int*)" remove="all"/>
     <!-- ### A QList parameter, for no defined type, will generate wrong code. -->
     <modify-function signature="operator+=(QList&lt;QPoint&gt;)" remove="all"/>
-    <add-function signature="operator&lt;&lt;(QPoint)">
+    <add-function signature="operator&lt;&lt;(QPoint)" return-type="QPolygon">
         <inject-code file="../glue/qtgui.cpp" snippet="qpolygon-operatorlowerlower"/>
     </add-function>
-    <add-function signature="operator&lt;&lt;(QList&lt;QPoint&gt;)">
+    <add-function signature="operator&lt;&lt;(QList&lt;QPoint&gt;)" return-type="QPolygon">
         <inject-code file="../glue/qtgui.cpp" snippet="qpolygon-operatorlowerlower"/>
     </add-function>
     <!-- ### -->
@@ -486,10 +492,20 @@
     <extra-includes>
       <include file-name="QTransform" location="global"/>
     </extra-includes>
+    <!-- Expose operator==, != inherited from QList, which the parser does
+         not see due to the TMP expression of the return type. -->
+    <add-function signature="operator==(const QPolygonF&amp;)" return-type="bool"/>
+    <add-function signature="operator!=(const QPolygonF&amp;)" return-type="bool"/>
+
     <!-- ### A QList parameter, for no defined type, will generate wrong code. -->
     <modify-function signature="operator+=(QList&lt;QPointF&gt;)" remove="all"/>
     <!-- ### See bug 777 -->
-    <modify-function signature="operator&lt;&lt;(QList&lt;QPointF&gt;)" remove="all"/>
+    <add-function signature="operator&lt;&lt;(QPointF)" return-type="QPolygonF">
+        <inject-code file="../glue/qtgui.cpp" snippet="qpolygonf-operatorlowerlower"/>
+    </add-function>
+    <add-function signature="operator&lt;&lt;(QList&lt;QPointF&gt;)" return-type="QPolygonF">
+        <inject-code file="../glue/qtgui.cpp" snippet="qpolygonf-operatorlowerlower"/>
+    </add-function>
     <!-- ### -->
   </value-type>
   <value-type name="QIcon" >
@@ -1655,26 +1671,6 @@
         <parent index="this" action="add"/>
       </modify-argument>
     </modify-function>
-    <modify-function signature="invisibleRootItem()const">
-      <modify-argument index="return">
-        <parent index="this" action="add"/>
-      </modify-argument>
-    </modify-function>
-    <modify-function signature="item(int,int)const">
-      <modify-argument index="return">
-        <parent index="this" action="add"/>
-      </modify-argument>
-    </modify-function>
-    <modify-function signature="itemFromIndex(const QModelIndex&amp;)const">
-      <modify-argument index="return">
-        <parent index="this" action="add"/>
-      </modify-argument>
-    </modify-function>
-    <modify-function signature="itemPrototype()const">
-      <modify-argument index="return">
-        <parent index="this" action="add"/>
-      </modify-argument>
-    </modify-function>
 
     <modify-function signature="appendRow(const QList&lt;QStandardItem*&gt;&amp;)">
       <modify-argument index="1">
@@ -1732,12 +1728,6 @@
     <modify-function signature="takeRow(int)">
       <modify-argument index="return">
         <parent index="this" action="remove"/>
-      </modify-argument>
-    </modify-function>
-
-    <modify-function signature="findItems(const QString&amp;,QFlags&lt;Qt::MatchFlag&gt;,int)const">
-      <modify-argument index="return">
-        <parent index="this" action="add"/>
       </modify-argument>
     </modify-function>
 
@@ -2809,6 +2799,9 @@
       </modify-argument>
       <inject-code file="../glue/qtgui.cpp" snippet="qwindow-fromWinId"/>
     </modify-function>
+    <modify-function signature="setParent(QWindow*)">
+      <modify-argument index="1" pyi-type="Optional[QWindow]"/>
+    </modify-function>
     <modify-function signature="show()" allow-thread="yes"/>
     <modify-function signature="showFullScreen()" allow-thread="yes"/>
     <modify-function signature="showMaximized()" allow-thread="yes"/>
@@ -2841,9 +2834,6 @@
     <add-function signature="exec_()" return-type="int">
         <inject-code file="../glue/qtgui.cpp" snippet="qguiapplication-exec"/>
     </add-function>
-    <modify-function signature="modalWindow()">
-        <modify-argument index="return" pyi-type="Optional[PySide6.QtGui.QWindow]"/>
-    </modify-function>
     <add-function signature="nativeInterface()const" return-type="PyObject">
         <modify-argument index="return"> <!-- Suppress return value heuristics -->
             <define-ownership class="target" owner="default"/>
@@ -2851,9 +2841,6 @@
         <inject-code class="target" position="beginning" file="../glue/qtgui.cpp"
                      snippet="qguiapplication-nativeInterface"/>
     </add-function>
-    <modify-function signature="screenAt(const QPoint &amp;)">
-        <modify-argument index="return" pyi-type="Optional[PySide6.QtGui.QScreen]"/>
-    </modify-function>
     <modify-function signature="setOverrideCursor(const QCursor&amp;)">
         <modify-argument index="return" pyi-type="PyObject">
             <replace-type modified-type="QtGuiHelper::QOverrideCursorGuard*"/>
@@ -2862,31 +2849,6 @@
                      snippet="qguiapplication-setoverridecursor"/>
     </modify-function>
   </object-type>
-
-  <namespace-type name="QNativeInterface" private="yes" since="6.7">
-      <object-type name="QX11Application" private="yes" disable-wrapper="yes"
-                   force-abstract="yes">
-          <configuration condition="QT_CONFIG(xcb)"/>
-          <modify-function signature="display()const">
-              <modify-argument index="return">
-                  <replace-type modified-type="int"/>
-              </modify-argument>
-              <inject-code class="target" position="end" file="../glue/qtgui.cpp"
-                           snippet="qx11application-resource-ptr"/>
-          </modify-function>
-          <modify-function signature="connection()const">
-              <modify-argument index="return">
-                  <replace-type modified-type="int"/>
-              </modify-argument>
-              <inject-code class="target" position="end" file="../glue/qtgui.cpp"
-                           snippet="qx11application-resource-ptr"/>
-          </modify-function>
-      </object-type>
-      <object-type name="QWindowsScreen" private="yes" disable-wrapper="yes"
-                   force-abstract="yes">
-          <configuration condition="#ifdef Q_OS_WIN"/>
-      </object-type>
-  </namespace-type>
 
   <object-type name="QOpenGLContext">
     <enum-type name="OpenGLModuleType"/>

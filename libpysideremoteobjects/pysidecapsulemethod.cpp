@@ -3,6 +3,9 @@
 
 #include "pysidecapsulemethod_p.h"
 
+#include <string.h>
+#include <sbkpep.h>
+
 extern "C"
 {
 

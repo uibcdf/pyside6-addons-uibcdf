@@ -17,6 +17,7 @@
 #include <QtCore/qcoreapplication.h>
 #include <QtCore/qhash.h>
 #include <QtCore/qpointer.h>
+#include <QtCore/qthread.h>
 
 namespace PySide
 {
@@ -314,6 +315,7 @@ public:
 
 public Q_SLOTS:
     void senderDestroyed(QObject *o);
+    void reparentOnQApp();
 };
 
 void SenderSignalDeletionTracker::senderDestroyed(QObject *o)
@@ -325,6 +327,12 @@ void SenderSignalDeletionTracker::senderDestroyed(QObject *o)
         else
             ++it;
     }
+}
+
+void SenderSignalDeletionTracker::reparentOnQApp()
+{
+    if (auto *app = QCoreApplication::instance())
+        setParent(app);
 }
 
 static QPointer<SenderSignalDeletionTracker> senderSignalDeletionTracker;
@@ -364,7 +372,15 @@ void registerSlotConnection(QObject *source, int signalIndex, PyObject *callback
     connectionHash.insert(connectionKey(source, signalIndex, callback), connection);
     if (senderSignalDeletionTracker.isNull()) {
         auto *app = QCoreApplication::instance();
-        senderSignalDeletionTracker = new SenderSignalDeletionTracker(app);
+        if (app == nullptr || QThread::currentThread() == app->thread()) {
+            senderSignalDeletionTracker = new SenderSignalDeletionTracker(app);
+        } else {
+            senderSignalDeletionTracker = new SenderSignalDeletionTracker(nullptr);
+            senderSignalDeletionTracker->moveToThread(app->thread());
+            senderSignalDeletionTracker->metaObject()->invokeMethod(senderSignalDeletionTracker,
+                                                                    "reparentOnQApp",
+                                                                    Qt::QueuedConnection);
+        }
         Py_AtExit(clearConnectionHash);
     }
 

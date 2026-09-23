@@ -8,11 +8,14 @@
 
 #include <autodecref.h>
 #include <sbkfeature_base.h>
+#include <sbkpep.h>
 #include <sbkstaticstrings.h>
 #include <sbkstring.h>
 #include <signature_p.h>
 
 #include <QtCore/qstringlist.h>
+
+#include <cstring>
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -123,7 +126,7 @@ static void ensureNewDictType()
     if (new_dict_type == nullptr) {
         new_dict_type = createDerivedDictType();
         if (new_dict_type == nullptr)
-            Py_FatalError("PySide6: Problem creating ChameleonDict");
+            Py_FatalError("libshiboken: Problem creating ChameleonDict");
     }
 }
 
@@ -271,19 +274,20 @@ static inline void SelectFeatureSetSubtype(PyTypeObject *type, int select_id)
      * This is the selector for one sublass. We need to call this for
      * every subclass until no more subclasses or reaching the wanted id.
      */
-    static const auto *pyTypeType_tp_dict = PepType_GetDict(&PyType_Type);
+    static auto *pyTypeType_tp_dict = PepType_GetDict(&PyType_Type);
     AutoDecRef tpDict(PepType_GetDict(type));
     if (Py_TYPE(tpDict.object()) == Py_TYPE(pyTypeType_tp_dict)) {
         // On first touch, we initialize the dynamic naming.
         // The dict type will be replaced after the first call.
         if (!replaceClassDict(type)) {
-            Py_FatalError("failed to replace class dict!");
+            Py_FatalError("libshiboken: failed to replace class dict!");
             return;
         }
     }
     if (!moveToFeatureSet(type, select_id)) {
         if (!createNewFeatureSet(type, select_id)) {
-            Py_FatalError("failed to create a new feature set!");
+            PyErr_Print();
+            Py_FatalError("libshiboken: failed to create a new feature set!");
             return;
         }
     }
@@ -296,13 +300,12 @@ static inline int getFeatureSelectId()
 {
     static auto *undef = PyLong_FromLong(-1);
     static auto *feature_dict = GetFeatureDict();
-    // these things are all borrowed
-    auto *globals = PyEval_GetGlobals();
-    if (globals == nullptr
-        || globals == cached_globals)
+
+    Shiboken::AutoDecRef globals(PepEval_GetFrameGlobals());
+    if (globals.isNull() || globals.object() == cached_globals)
         return last_select_id;
 
-    auto *modname = PyDict_GetItem(globals, PyMagicName::name());
+    auto *modname = PyDict_GetItem(globals.object(), PyMagicName::name());
     if (modname == nullptr)
         return last_select_id;
 
@@ -327,12 +330,12 @@ static inline void SelectFeatureSet(PyTypeObject *type)
      * Generated functions call this directly.
      * Shiboken will assign it via a public hook of `basewrapper.cpp`.
      */
-    static const auto *pyTypeType_tp_dict = PepType_GetDict(&PyType_Type);
+    static auto *pyTypeType_tp_dict = PepType_GetDict(&PyType_Type);
     AutoDecRef tpDict(PepType_GetDict(type));
     if (Py_TYPE(tpDict.object()) == Py_TYPE(pyTypeType_tp_dict)) {
         // We initialize the dynamic features by using our own dict type.
         if (!replaceClassDict(type)) {
-            Py_FatalError("failed to replace class dict!");
+            Py_FatalError("libshiboken: failed to replace class dict!");
             return;
         }
     }
@@ -445,9 +448,9 @@ static PyObject *methodWithNewName(PyTypeObject *type,
      * Create a method with a lower case name.
      */
     auto *obtype = reinterpret_cast<PyObject *>(type);
-    const auto len = strlen(new_name);
+    const auto len = std::strlen(new_name);
     auto *name = new char[len + 1];
-    strcpy(name, new_name);
+    std::strcpy(name, new_name);
     auto *new_meth = new PyMethodDef;
     new_meth->ml_name = name;
     new_meth->ml_meth = meth->ml_meth;

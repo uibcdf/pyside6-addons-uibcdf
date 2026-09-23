@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 -->
 <typesystem package="PySide6.QtGui">
+  <object-type name="QRhiAdapter" since="6.10" private="yes"/>
   <value-type name="QRhiDepthStencilClearValue" since="6.6" private="yes"/>
   <value-type name="QRhiViewport" since="6.6" private="yes"/>
   <value-type name="QRhiScissor" since="6.6" private="yes"/>
@@ -133,7 +134,14 @@
       </add-function>
   </object-type>
   <value-type name="QRhiReadbackResult" since="6.6" private="yes"/>
-  <object-type name="QRhiResourceUpdateBatch" since="6.6" private="yes"/>
+  <object-type name="QRhiResourceUpdateBatch" since="6.6" private="yes">
+      <!-- Hack fixing uploadStaticBuffer(QRhiBuffer*,const void*) to work after adding the Q
+           ByteArray overloads in 6.10. The overloads:
+               uploadStaticBuffer(QRhiBuffer*,const void*)
+               uploadStaticBuffer(QRhiBuffer*,quint32,...)
+           cause an issue here since quint32 converts from const void*. -->
+      <modify-function signature="uploadStaticBuffer(QRhiBuffer*,const void*)" overload-number="0"/>
+  </object-type>
   <value-type name="QRhiDriverInfo" since="6.6" private="yes">
       <enum-type name="DeviceType"/>
   </value-type>

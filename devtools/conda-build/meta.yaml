@@ -1,12 +1,12 @@
 package:
   name: pyside6-addons-uibcdf
-  version: "6.9.2"
+  version: "6.10.1"
 
 source:
   path: ../..
 
 build:
-  number: 6
+  number: 0
 
 requirements:
   build:
@@ -16,25 +16,25 @@ requirements:
     - ninja
     - pkg-config
   host:
-    - python =3.13
-    - qt6-main =6.9.2
-    - qt6-positioning-uibcdf ==6.9.2
-    - qt6-webengine-uibcdf ==6.9.2
+    - python =3.14
+    - qt6-main =6.10.1
+    - qt6-positioning-uibcdf ==6.10.1
+    - qt6-webengine-uibcdf ==6.10.1
     - libopengl
     - libgl-devel
     - libglx-devel
     - clangdev
     - llvmdev
-    - shiboken6-uibcdf ==6.9.2 *_4
-    - pyside6-essentials-uibcdf ==6.9.2 *_4
+    - shiboken6-uibcdf ==6.10.1
+    - pyside6-essentials-uibcdf ==6.10.1
   run:
-    - python =3.13
-    - qt6-main >=6.9.2,<6.10.0a0
-    - qt6-positioning-uibcdf ==6.9.2
-    - qt6-webengine-uibcdf ==6.9.2
+    - python =3.14
+    - qt6-main >=6.10.1,<6.11.0a0
+    - qt6-positioning-uibcdf ==6.10.1
+    - qt6-webengine-uibcdf ==6.10.1
     - libopengl
-    - shiboken6-uibcdf ==6.9.2 *_4
-    - pyside6-essentials-uibcdf ==6.9.2 *_4
+    - shiboken6-uibcdf ==6.10.1
+    - pyside6-essentials-uibcdf ==6.10.1
     - libgcc
     - libstdcxx
 
@@ -49,7 +49,7 @@ test:
     - python -c "from PySide6_uibcdf.QtWebEngineWidgets import QWebEngineView; print(QWebEngineView.__module__)"
 
 about:
-  summary: "Experimental UIBCDF-aligned PySide6 Addons 6.9.2 package for Linux/Python 3.13."
+  summary: "Experimental UIBCDF-aligned PySide6 Addons 6.10.1 package for Linux/Python 3.14."
   license: "LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"
   description: |
     Experimental source-built conda package for the standalone-critical Addons

@@ -7,6 +7,7 @@
 
 #include <autodecref.h>
 #include <basewrapper.h>
+#include <sbkpep.h>
 #include <sbkstaticstrings.h>
 #include <sbkstring.h>
 #include <sbktypefactory.h>
@@ -171,17 +172,19 @@ DataList *dataListFromCapsule(PyObject *capsule)
 }
 
 static const char *Slot_SignatureStrings[] = {
-    "PySide6.QtCore.Slot(self,*types:type,name:str=nullptr,result:type=nullptr)",
+    "PySide6.QtCore.Slot(self,*types:typing.Union[type,str],name:str=nullptr,result:typing.Union[type,str]=nullptr)",
     "PySide6.QtCore.Slot.__call__(self,function:collections.abc.Callable[...,typing.Any])->typing.Any",
     nullptr}; // Sentinel
 
 void init(PyObject *module)
 {
-    if (InitSignatureStrings(PySideSlot_TypeF(), Slot_SignatureStrings) < 0)
+    auto *slotType = PySideSlot_TypeF();
+    if (InitSignatureStrings(slotType, Slot_SignatureStrings) < 0)
         return;
 
-    Py_INCREF(PySideSlot_TypeF());
-    PyModule_AddObject(module, "Slot", reinterpret_cast<PyObject *>(PySideSlot_TypeF()));
+    auto *obSlotType = reinterpret_cast<PyObject *>(slotType);
+    Py_INCREF(obSlotType);
+    PepModule_AddType(module, slotType);
 }
 
 } // namespace PySide::Slot

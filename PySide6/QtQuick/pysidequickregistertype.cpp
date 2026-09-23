@@ -6,9 +6,12 @@
 #include <pyside.h>
 #include <pysideqmlregistertype.h>
 #include <pyside_p.h>
-#include <shiboken.h>
+#include <sbkpython.h>
+#include <sbkconverter.h>
+#include <sbkpep.h>
 
 #include <QtQuick/QQuickPaintedItem>
+#include <QtQuick/QQuickTextDocument>
 
 #if QT_CONFIG(opengl) || QT_CONFIG(opengles2) || QT_CONFIG(opengles3)
 #  include <QtQuick/QQuickFramebufferObject>
@@ -71,6 +74,7 @@ void PySide::initQuickSupport(PyObject *module)
     qRegisterMetaType<QQuickFramebufferObject*>("QQuickFramebufferObject*");
 #endif
     qRegisterMetaType<QQuickItem*>("QQuickItem*");
+    qRegisterMetaType<QQuickTextDocument*>("QQuickTextDocument*");
 
     Qml::setQuickRegisterItemFunction(quickRegisterType);
 }

@@ -9,6 +9,7 @@
 
 #include <QtCore/qmetaobject.h>
 #include <QtCore/qmetaobject.h>
+#include <QtCore/qvariant.h>
 
 #include <utility>
 
@@ -17,16 +18,17 @@ class MetaObjectBuilderPrivate;
 namespace PySide
 {
 
-class MetaObjectBuilder
+class PYSIDE_API MetaObjectBuilder
 {
     Q_DISABLE_COPY_MOVE(MetaObjectBuilder)
 public:
-    using EnumValue = std::pair<QByteArray, int>;
+    using EnumValue = std::pair<QByteArray, QVariant>; // Int/ULongLong
     using EnumValues = QList<EnumValue>;
 
-    MetaObjectBuilder(const char *className, const QMetaObject *metaObject);
-
-    MetaObjectBuilder(PyTypeObject *type, const QMetaObject *metaObject);
+    // Plain wrapped Qt types
+    explicit MetaObjectBuilder(const QMetaObject *metaObject);
+    // Types defined in Python which are parsed
+    explicit MetaObjectBuilder(PyTypeObject *type, const QMetaObject *metaObject);
     ~MetaObjectBuilder();
 
     int indexOfMethod(QMetaMethod::MethodType mtype, const QByteArray &signature) const;
@@ -44,7 +46,7 @@ public:
 
     const QMetaObject *update();
 
-    PYSIDE_API static QString formatMetaObject(const QMetaObject *metaObject);
+    static QString formatMetaObject(const QMetaObject *metaObject);
 
 private:
     MetaObjectBuilderPrivate *m_d;

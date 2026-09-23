@@ -16,7 +16,9 @@
     <extra-includes>
         <include file-name="pysidemetatype.h" location="global"/>
         <include file-name="pysideutils.h" location="global"/> <!-- QString conversion -->
+        <include file-name="pysidevariantutils.h" location="global"/> <!-- QVariant conversion -->
         <include file-name="signalmanager.h" location="global"/>
+        <include file-name="sbkerrors.h" location="global"/>
         <!-- QtCoreHelper::QGenericReturnArgumentHolder -->
         <include file-name="qtcorehelper.h" location="local"/>
     </extra-includes>
@@ -318,6 +320,8 @@
   <primitive-type name="QVariant" target-lang-api-name="PyObject">
     <extra-includes>
         <include file-name="optional" location="global"/>
+        <include file-name="pysideqenum.h" location="global"/>
+        <include file-name="pysidevariantutils.h" location="global"/>
     </extra-includes>
     <conversion-rule>
         <native-to-target file="../glue/qtcore.cpp" snippet="return-qvariant"/>
@@ -328,9 +332,11 @@
             <add-conversion type="QByteArray" file="../glue/qtcore.cpp" snippet="conversion-qbytearray"/>
             <add-conversion type="PyFloat" check="PyFloat_CheckExact(%in)" file="../glue/qtcore.cpp" snippet="conversion-pyfloat"/>
             <add-conversion type="PyLong" check="PyLong_CheckExact(%in)"  file="../glue/qtcore.cpp" snippet="conversion-qlonglong"/>
+            <add-conversion type="SbkEnumType" check="Shiboken::Enum::check(%in)" file="../glue/qtcore.cpp" snippet="conversion-sbkobject"/>
             <add-conversion type="SbkObject" file="../glue/qtcore.cpp" snippet="conversion-sbkobject"/>
             <add-conversion type="PyDict" check="PyDict_CheckExact(%in)" file="../glue/qtcore.cpp" snippet="conversion-pydict"/>
             <add-conversion type="PyList" check="PyList_Check(%in)" file="../glue/qtcore.cpp" snippet="conversion-pylist"/>
+            <add-conversion type="PyTuple" check="PyTuple_Check(%in)" file="../glue/qtcore.cpp" snippet="conversion-pylist"/>
             <add-conversion type="PyObject" file="../glue/qtcore.cpp" snippet="conversion-pyobject"/>
         </target-to-native>
     </conversion-rule>
@@ -388,6 +394,9 @@
   </object-type>
 
   <primitive-type name="QJsonObject">
+    <extra-includes>
+        <include file-name="pysidevariantutils.h" location="global"/>
+    </extra-includes>
     <conversion-rule>
         <native-to-target file="../glue/qtcore.cpp" snippet="return-qjsonobject"/>
         <target-to-native>
@@ -613,6 +622,7 @@
     <enum-type name="ConnectionType"/>
     <enum-type name="ContextMenuPolicy"/>
     <enum-type name="ContextMenuTrigger" since="6.8"/>
+    <enum-type name="ContrastPreference" since="6.10"/>
     <enum-type name="CoordinateSystem"/>
     <enum-type name="Corner"/>
     <enum-type name="CursorShape"/>
@@ -770,6 +780,7 @@
     <inject-code class="native" position="beginning" file="../glue/qtcore.cpp" snippet="qline-hash"/>
 
     <add-function signature="toTuple" return-type="PyObject*">
+        <modify-argument index="return" pyi-type="PyTuple[int, int, int, int]" />
         <inject-code class="target" position="beginning">
             <insert-template name="to_tuple">
                 <replace from="%TT_FORMAT" to="iiii"/>
@@ -799,6 +810,7 @@
     </add-function>
 
     <add-function signature="toTuple" return-type="PyObject*">
+        <modify-argument index="return" pyi-type="PyTuple[float, float, float, float]" />
         <inject-code class="target" position="beginning">
             <insert-template name="to_tuple">
                 <replace from="%TT_FORMAT" to="dddd"/>
@@ -931,8 +943,11 @@
         <inject-code class="target" position="beginning" file="../glue/qtcore.cpp" snippet="qdatetime-2"/>
     </add-function>
     <!-- PYSIDE-1735: Qt::TimeSpec is no more compatible with int -->
-    <add-function signature="QDateTime(int@year@,int@month@,int@day@,int@h@,int@m@,int@s@,int@ms@,Qt::TimeSpec@spec@=Qt::LocalTime)">
+    <add-function signature="QDateTime(int@year@,int@month@,int@day@,int@h@,int@m@,int@s@,int@ms@,Qt::TimeSpec@spec@)">
         <inject-code class="target" position="beginning" file="../glue/qtcore.cpp" snippet="qdatetime-3"/>
+    </add-function>
+    <add-function signature="QDateTime(int@year@,int@month@,int@day@,int@h@,int@m@,int@s@,int@ms@,QTimeZone@spec@=QTimeZone::LocalTime)" since="6.5">
+        <inject-code class="target" position="beginning" file="../glue/qtcore.cpp" snippet="qdatetime-4"/>
     </add-function>
     <add-function signature="__repr__" return-type="str">
         <inject-code class="target" position="beginning">
@@ -958,6 +973,14 @@
   <value-type name="QDir">
     <enum-type name="Filter" flags="Filters"/>
     <enum-type name="SortFlag" flags="SortFlags"/>
+
+    <declare-function signature="mkdir(QString)const" return-type="bool"/>
+    <declare-function signature="mkdir(QString,QFileDevice::Permissions)const" return-type="bool"/>
+    <modify-function signature="mkdir(QString,std::optional&lt;QFileDevice::Permissions&gt;)const" remove="all"/>
+
+    <declare-function signature="mkpath(QString)const" return-type="bool"/>
+    <declare-function signature="mkpath(QString,QFileDevice::Permissions)const" return-type="bool"/>
+    <modify-function signature="mkpath(QString,std::optional&lt;QFileDevice::Permissions&gt;)const" remove="all"/>
 
     <!-- PYSIDE-1499: Replace QString by pathlib.Path (qdir.h) -->
     <modify-function signature="QDir(const QString &amp;)">
@@ -1055,6 +1078,7 @@
     </add-function>
 
     <add-function signature="toTuple" return-type="PyObject*">
+        <modify-argument index="return" pyi-type="PyTuple[int, int]" />
         <inject-code class="target" position="beginning">
             <insert-template name="to_tuple">
                 <replace from="%TT_FORMAT" to="ii"/>
@@ -1088,6 +1112,7 @@
     </add-function>
 
     <add-function signature="toTuple" return-type="PyObject*">
+        <modify-argument index="return" pyi-type="PyTuple[float, float]" />
         <inject-code class="target" position="beginning">
             <insert-template name="to_tuple">
                 <replace from="%TT_FORMAT" to="dd"/>
@@ -1251,6 +1276,7 @@
     </add-function>
 
     <add-function signature="toTuple" return-type="PyObject*">
+        <modify-argument index="return" pyi-type="PyTuple[int, int]" />
         <inject-code class="target" position="beginning">
             <insert-template name="to_tuple">
                 <replace from="%TT_FORMAT" to="ii"/>
@@ -1284,6 +1310,7 @@
     </add-function>
 
     <add-function signature="toTuple" return-type="PyObject*">
+        <modify-argument index="return" pyi-type="PyTuple[float, float]" />
         <inject-code class="target" position="beginning">
             <insert-template name="to_tuple">
                 <replace from="%TT_FORMAT" to="dd"/>
@@ -1718,6 +1745,33 @@
     <modify-function signature="endResetModel()" allow-thread="yes"/>
   </object-type>
 
+  <object-type name="QRangeModel" since="6.10">
+    <extra-includes>
+      <include file-name="QtCore/qspan.h" location="global"/>
+      <include file-name="sbknumpycheck.h" location="global"/>
+      <include file-name="sbknumpyview.h" location="global"/>
+      <include file-name="pysidevariantutils.h" location="global"/>
+      <include file-name="vector" location="global"/>
+    </extra-includes>
+    <enum-type name="RowCategory"/>
+    <inject-code class="native" position="wrapper-declaration"
+                 file="../glue/qtcore.cpp" snippet="qrangemodel-wrapper"/>
+    <inject-code class="native" position="beginning"
+                 file="../glue/qtcore.cpp" snippet="qrangemodel-helper-functions"/>
+    <add-function signature="QRangeModel(PyArrayObject *@data@, QObject *@parent@ = nullptr)"
+                  overload-number="0">
+        <inject-documentation format="target" mode="append" file="../doc/qtcore.rst"
+                              snippet="qrangemodel-numpy-constructor"/>
+        <inject-code file="../glue/qtcore.cpp" snippet="qrangemodel-numpy-constructor"/>
+    </add-function>
+    <add-function signature="QRangeModel(PySequence@list@, QObject *@parent@ = nullptr)"
+                  overload-number="1">
+        <inject-documentation format="target" mode="append" file="../doc/qtcore.rst"
+                              snippet="qrangemodel-sequence-constructor"/>
+        <inject-code file="../glue/qtcore.cpp" snippet="qrangemodel-sequence-constructor"/>
+    </add-function>
+  </object-type>
+
   <value-type name="QItemSelection">
     <include file-name="QList" location="global"/>
     <!-- Expose operator==, != inherited from QList, which the parser does
@@ -1759,6 +1813,7 @@
       <include file-name="QStringList" location="global"/>
       <include file-name="QSize" location="global"/>
     </extra-includes>
+    <enum-type name="Direction" flags="Directions" since="6.10"/>
     <modify-function signature="setSourceModel(QAbstractItemModel*)">
       <modify-argument index="1">
         <reference-count action="set"/>
@@ -2660,7 +2715,9 @@
 
     <?if !windows?>
     <enum-type name="UnixProcessFlag" flags="UnixProcessFlags" since="6.6"/>
-    <value-type name="UnixProcessParameters" since="6.6"/>
+    <value-type name="UnixProcessParameters">
+      <configuration condition="QT_CONFIG(process)"/>
+    </value-type>
     <?endif?>
 
     <modify-function signature="waitForStarted(int)" allow-thread="yes"/>
@@ -3134,6 +3191,7 @@
     <enum-type name="ReadElementTextBehaviour"/>
   </object-type>
   <object-type name="QXmlStreamWriter">
+    <enum-type name="Error" since="6.10"/>
     <!-- Removed because it expect QString to be mutable -->
     <modify-function signature="QXmlStreamWriter(QString*)" remove="all"/>
   </object-type>
@@ -3155,6 +3213,7 @@
       <configuration condition="QT_CONFIG(future)"/>
       <enum-type name="State"/>
       <enum-type name="CancelMode" since="6.3"/>
+      <enum-type name="ContinuationType" since="6.10"/>
   </object-type>
   <value-type name="QFuture" generate="no">
       <include file-name="QtCore/qfuture.h" location="global"/>
@@ -3388,6 +3447,10 @@
   </value-type>
 
   <value-type name="QMetaEnum">
+    <modify-function signature="value(int)const">
+        <inject-code class="target" position="beginning"
+                     file="../glue/qtcore.cpp" snippet="qmetaenum_value"/>
+    </modify-function>
     <modify-function signature="keyToValue(const char*,bool*)const">
         <modify-argument index="2">
             <remove-argument />
@@ -3395,9 +3458,8 @@
         <modify-argument index="return">
             <replace-type modified-type="PyTuple"/>
         </modify-argument>
-        <inject-code class="target" position="beginning">
-            <insert-template name="fix_args,bool*"/>
-        </inject-code>
+        <inject-code class="target" position="beginning"
+                     file="../glue/qtcore.cpp" snippet="qmetaenum_keytovalue"/>
     </modify-function>
     <modify-function signature="keysToValue(const char*,bool*)const">
         <modify-argument index="2">
@@ -3406,9 +3468,8 @@
         <modify-argument index="return">
             <replace-type modified-type="PyTuple"/>
         </modify-argument>
-        <inject-code class="target" position="beginning">
-            <insert-template name="fix_args,bool*"/>
-        </inject-code>
+        <inject-code class="target" position="beginning"
+                     file="../glue/qtcore.cpp" snippet="qmetaenum_keystovalue"/>
     </modify-function>
     <!-- This isn't part of Qt public API -->
     <modify-function signature="enclosingMetaObject()const" remove="all"/>

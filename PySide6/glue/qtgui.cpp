@@ -365,6 +365,11 @@ for (Py_ssize_t i = 0; i < count; ++i){
 %PYARG_0 = %CONVERTTOPYTHON[QPolygon *](%CPPSELF);
 // @snippet qpolygon-operatorlowerlower
 
+// @snippet qpolygonf-operatorlowerlower
+*%CPPSELF << %1;
+%PYARG_0 = %CONVERTTOPYTHON[QPolygonF *](%CPPSELF);
+// @snippet qpolygonf-operatorlowerlower
+
 // @snippet qpixmap
 %0 = new %TYPE(QPixmap::fromImage(%1));
 // @snippet qpixmap
@@ -907,7 +912,13 @@ if (auto *x11App = %CPPSELF.nativeInterface<QNativeInterface::QX11Application>()
     hasNativeApp = true;
     %PYARG_0 = %CONVERTTOPYTHON[QNativeInterface::QX11Application*](x11App);
 }
-#endif
+#endif // xcb
+#if QT_CONFIG(wayland)
+if (auto *waylandApp = %CPPSELF.nativeInterface<QNativeInterface::QWaylandApplication>()) {
+    hasNativeApp = true;
+    %PYARG_0 = %CONVERTTOPYTHON[QNativeInterface::QWaylandApplication*](waylandApp);
+}
+#endif // wayland
 if (!hasNativeApp) {
     Py_INCREF(Py_None);
     %PYARG_0 = Py_None;
@@ -934,10 +945,11 @@ if (!hasNativeScreen) {
 }
 // @snippet qscreen-nativeInterface
 
-// @snippet qx11application-resource-ptr
+// Return 'int' from native interface's forward-declared structs like Display*
+// @snippet native-resource-ptr
  auto *resource = %CPPSELF.%FUNCTION_NAME();
 %PYARG_0 = PyLong_FromVoidPtr(resource);
-// @snippet qx11application-resource-ptr
+// @snippet native-resource-ptr
 
 // @snippet qwindow-fromWinId
 WId id = %1;
@@ -1055,7 +1067,7 @@ return %CONVERTTOPYTHON[QRect](cppResult);
 // @snippet qpainterstateguard-restore
 
 // @snippet qmatrix-repr-code
-QByteArray format(Py_TYPE(%PYSELF)->tp_name);
+QByteArray format(PepType_GetFullyQualifiedNameStr(Py_TYPE(%PYSELF)));
 format += QByteArrayLiteral("((");
 %MATRIX_TYPE data[%MATRIX_SIZE];
 %CPPSELF.copyDataTo(data);

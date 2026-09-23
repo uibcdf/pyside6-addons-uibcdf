@@ -210,27 +210,18 @@ macro(create_pyside_module)
     # comes as a default requirement for building PySide6. As such for
     # cross-compiling in linux, we use the clang compiler from the installed
     # libclang itself.
-    if(CMAKE_ANDROID_ARCH_LLVM_TRIPLE AND CMAKE_HOST_APPLE)
+    if (CMAKE_CROSSCOMPILING)
+        list(APPEND shiboken_command "--platform=${CMAKE_SYSTEM_NAME}"
+                                     "--arch=${CMAKE_SYSTEM_PROCESSOR}"
+                                     "--compiler-path=${CMAKE_CXX_COMPILER}")
+    endif()
+
+    if(CMAKE_ANDROID_ARCH_LLVM_TRIPLE)
         message(STATUS "Building for Android with arch ${CMAKE_ANDROID_ARCH_LLVM_TRIPLE}")
-        list(APPEND shiboken_command "--clang-option=--target=${CMAKE_ANDROID_ARCH_LLVM_TRIPLE}")
-
-        # CMAKE_CXX_ANDROID_TOOLCHAIN_PREFIX does not contain the ANDROID_PLATFORM i.e. it ends with
-        # the form 'aarch64-linux-android-'. Remove the last '-' and add the corresponding clang
-        # based on ANDROID_PLATFORM making it 'aarch64-linux-android26-clang++'
-
-        # Get the length of the string
-        string(LENGTH "${CMAKE_CXX_ANDROID_TOOLCHAIN_PREFIX}" _length)
-
-        # Subtract 1 from the length to get the characters till '-'
-        math(EXPR _last_index "${_length} - 1")
-
-        # Get the substring from the start to the character before the last one
-        string(SUBSTRING "${CMAKE_CXX_ANDROID_TOOLCHAIN_PREFIX}" 0 "${_last_index}"
-               SHIBOKEN_ANDROID_COMPILER_PREFIX)
-
-        # use the compiler from the Android NDK
+        # CMAKE_CXX_COMPILER is the generic clang++; for finding the include paths,
+        # it needs "--target".
         list(APPEND shiboken_command
-            "--compiler-path=${SHIBOKEN_ANDROID_COMPILER_PREFIX}${CMAKE_ANDROID_API}-clang++")
+             "--compiler-argument=--target=${CMAKE_ANDROID_ARCH_LLVM_TRIPLE}")
     endif()
 
     if(CMAKE_HOST_APPLE)
@@ -297,6 +288,24 @@ macro(create_pyside_module)
         set(ld_prefix_var_name "LD_LIBRARY_PATH")
     endif()
 
+    # Get the build type, default to RELEASE if not set
+    if(CMAKE_BUILD_TYPE)
+        string(TOUPPER "${CMAKE_BUILD_TYPE}" _build_type)
+    else()
+        set(_build_type "RELEASE")
+    endif()
+
+    # Try to get the location for the current build type
+    get_target_property(_shiboken_lib_location Shiboken6::libshiboken IMPORTED_LOCATION_${_build_type})
+
+    # Fallback to RELEASE if not found
+    if(NOT _shiboken_lib_location)
+        get_target_property(_shiboken_lib_location Shiboken6::libshiboken IMPORTED_LOCATION_RELEASE)
+    endif()
+
+    # Get the directory containing the library file, which is the lib directory
+    get_filename_component(SHIBOKEN_SHARED_LIBRARY_DIR "${_shiboken_lib_location}" DIRECTORY)
+
     set(ld_prefix_list "")
     list(APPEND ld_prefix_list "${pysidebindings_BINARY_DIR}/libpyside")
     list(APPEND ld_prefix_list "${pysidebindings_BINARY_DIR}/libpysideqml")
@@ -340,9 +349,11 @@ macro(create_pyside_module)
     # on the host machine (usually, unless you use some userspace qemu based mechanism).
     # TODO: Can we do something better here to still get pyi files?
     if(NOT (PYSIDE_IS_CROSS_BUILD OR DISABLE_PYI))
+        set(SHIBOKEN_PYTHON_MODULE_DIR "${PYTHON_SITE_PACKAGES}/shiboken6")
         set(generate_pyi_options ${module_NAME} --sys-path
             "${pysidebindings_BINARY_DIR}"
-            "${SHIBOKEN_PYTHON_MODULE_DIR}/..")     # use the layer above shiboken6
+            "${SHIBOKEN_PYTHON_MODULE_DIR}/.."
+            "${SHIBOKEN_PYTHON_MODULE_DIR}/../../..")     # use the layer above shiboken6
         if (QUIET_BUILD)
             list(APPEND generate_pyi_options "--quiet")
         endif()
@@ -370,7 +381,7 @@ macro(create_pyside_module)
 
 
     install(FILES ${CMAKE_CURRENT_BINARY_DIR}/PySide6/${module_NAME}/pyside6_${lower_module_name}_python.h
-            DESTINATION include/${BINDING_NAME}${pyside6_SUFFIX}/${module_NAME}/)
+            DESTINATION ${BINDING_NAME}${pyside6_SUFFIX}/include/${module_NAME}/)
     file(GLOB typesystem_files ${CMAKE_CURRENT_SOURCE_DIR}/typesystem_*.xml ${typesystem_path})
 
 #   Copy typesystem files and remove module names from the <load-typesystem> element

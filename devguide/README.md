@@ -1,14 +1,9 @@
 # Devguide
 
-This directory records the local packaging and maintenance recipe for pyside6-addons-uibcdf.
+Current checkpoint: [Python 3.14 / Qt 6.10.1 candidate](python_3_14_qt_6_10_1.md).
 
-Primary entrypoint:
-
-- [bootstrap_6.9.2.md](bootstrap_6.9.2.md)
-
-Purpose:
-
-- make the 6.9.2 line reproducible without consulting /tmp/molsysviewer-standalone0-85y21nll.html
-- record where the code came from
-- record why this repo exists inside the provisional UIBCDF Qt-for-Python family
-- record how to approach a future 6.10.x line
+Historical context for the 6.9.2 prototype is in
+[bootstrap_6.9.2.md](bootstrap_6.9.2.md) and
+[build_gotchas_6.9.2.md](build_gotchas_6.9.2.md). Read those only when
+investigating the earlier line or a regression tied to it; the current
+checkpoint is sufficient for normal continuation.

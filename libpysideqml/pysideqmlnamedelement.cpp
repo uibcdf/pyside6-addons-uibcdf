@@ -41,7 +41,7 @@ PyTypeObject *createPySideQmlNamedElementType(void)
         PySide::ClassDecorator::Methods<PySideQmlNamedElementPrivate>::typeSlots();
 
     PyType_Spec PySideQmlNamedElementType_spec = {
-        "2:PySide6.QtCore.qmlNamedElement",
+        "2:PySide6.QtCore.QmlNamedElement",
         sizeof(PySideClassDecorator),
         0,
         Py_TPFLAGS_DEFAULT,
@@ -65,10 +65,11 @@ static const char *qmlNamedElement_SignatureStrings[] = {
 
 void initQmlNamedElement(PyObject *module)
 {
-    if (InitSignatureStrings(PySideQmlNamedElement_TypeF(), qmlNamedElement_SignatureStrings) < 0)
+    auto *qmlNamedElementType = PySideQmlNamedElement_TypeF();
+    if (InitSignatureStrings(qmlNamedElementType, qmlNamedElement_SignatureStrings) < 0)
         return;
 
-    Py_INCREF(PySideQmlNamedElement_TypeF());
-    PyModule_AddObject(module, "QmlNamedElement",
-                       reinterpret_cast<PyObject *>(PySideQmlNamedElement_TypeF()));
+    auto *obQmlNamedElementType = reinterpret_cast<PyObject *>(qmlNamedElementType);
+    Py_INCREF(obQmlNamedElementType);
+    PepModule_AddType(module, qmlNamedElementType);
 }

@@ -13,6 +13,7 @@
 
 #include <autodecref.h>
 #include <gilstate.h>
+#include <sbkpep.h>
 #include <sbkstaticstrings.h>
 #include <sbkstring.h>
 
@@ -24,11 +25,23 @@
 #include <private/qmetaobjectbuilder_p.h>
 
 #include <cstring>
+#include <limits>
 #include <vector>
 
 using namespace Qt::StringLiterals;
 
 using namespace PySide;
+
+// QMetaEnum can handle quint64 or int values. Check for big long values and force
+// them to quint64 (long=64bit/int=32bit on Linux vs long=32bit on Windows).
+// Note: underflows are currently not handled well.
+static QVariant longToEnumValue(PyObject *value)
+{
+    int overflow{};
+    const long longValue = PyLong_AsLongAndOverflow(value, &overflow);
+    return overflow != 0 || longValue > std::numeric_limits<int>::max()
+        ? QVariant(PyLong_AsUnsignedLongLong(value)) : QVariant(int(longValue));
+}
 
 // MetaObjectBuilder: Provides the QMetaObject's returned by
 // QObject::metaObject() for PySide6 objects. There are several
@@ -63,8 +76,8 @@ public:
     int addProperty(const QByteArray &property, PyObject *data);
     void addInfo(const QByteArray &key, const  QByteArray &value);
     void addInfo(const QMap<QByteArray, QByteArray> &info);
-    void addEnumerator(const char *name, bool flag, bool scoped,
-                       const MetaObjectBuilder::EnumValues &entries);
+    QMetaEnumBuilder addEnumerator(const char *name, bool flag, bool scoped,
+                                   const MetaObjectBuilder::EnumValues &entries);
     void removeProperty(int index);
     const QMetaObject *update();
 
@@ -89,31 +102,21 @@ QMetaObjectBuilder *MetaObjectBuilderPrivate::ensureBuilder()
     return m_builder;
 }
 
-MetaObjectBuilder::MetaObjectBuilder(const char *className, const QMetaObject *metaObject) :
-    m_d(new MetaObjectBuilderPrivate)
+MetaObjectBuilder::MetaObjectBuilder(const QMetaObject *metaObject)
+    : m_d(new MetaObjectBuilderPrivate)
 {
     m_d->m_baseObject = metaObject;
-    m_d->m_builder = new QMetaObjectBuilder();
-    m_d->m_builder->setClassName(className);
-    m_d->m_builder->setSuperClass(metaObject);
-    m_d->m_builder->setClassName(className);
 }
 
+// Parse the type in case of a Python class inheriting a Qt class.
 MetaObjectBuilder::MetaObjectBuilder(PyTypeObject *type, const QMetaObject *metaObject)
     : m_d(new MetaObjectBuilderPrivate)
 {
     m_d->m_baseObject = metaObject;
-    const char *className = type->tp_name;
-    if (const char *lastDot = strrchr(type->tp_name, '.'))
-        className = lastDot + 1;
-    // Different names indicate a Python class inheriting a Qt class.
-    // Parse the type.
-    if (strcmp(className, metaObject->className()) != 0) {
-        m_d->m_builder = new QMetaObjectBuilder();
-        m_d->m_builder->setClassName(className);
-        m_d->m_builder->setSuperClass(metaObject);
-        m_d->parsePythonType(type);
-    }
+    m_d->m_builder = new QMetaObjectBuilder();
+    m_d->m_builder->setClassName(PepType_GetNameStr(type));
+    m_d->m_builder->setSuperClass(metaObject);
+    m_d->parsePythonType(type);
 }
 
 MetaObjectBuilder::~MetaObjectBuilder()
@@ -303,9 +306,9 @@ QMetaPropertyBuilder
     auto *typeObject = Property::getTypeObject(property);
     if (typeObject != nullptr && PyType_Check(typeObject)) {
         auto *pyTypeObject = reinterpret_cast<PyTypeObject *>(typeObject);
-        if (qstrncmp(pyTypeObject->tp_name, "PySide", 6) != 0
+        if (qstrncmp(PepType_GetFullyQualifiedNameStr(pyTypeObject), "PySide", 6) != 0
             && PySide::isQObjectDerived(pyTypeObject, false)) {
-            const QByteArray pyType(pyTypeObject->tp_name);
+            const QByteArray pyType(PepType_GetFullyQualifiedNameStr(pyTypeObject));
             const auto metaType = QMetaType::fromName(pyType + '*');
             if (metaType.isValid()) {
                 return builder->addProperty(propertyName, pyType,
@@ -384,8 +387,9 @@ void MetaObjectBuilder::addEnumerator(const char *name, bool flag, bool scoped,
     m_d->addEnumerator(name, flag, scoped, entries);
 }
 
-void MetaObjectBuilderPrivate::addEnumerator(const char *name, bool flag, bool scoped,
-                                             const MetaObjectBuilder::EnumValues &entries)
+QMetaEnumBuilder
+    MetaObjectBuilderPrivate::addEnumerator(const char *name, bool flag, bool scoped,
+                                            const MetaObjectBuilder::EnumValues &entries)
 {
     auto *builder = ensureBuilder();
     int have_already = builder->indexOfEnumerator(name);
@@ -394,10 +398,15 @@ void MetaObjectBuilderPrivate::addEnumerator(const char *name, bool flag, bool s
     auto enumbuilder = builder->addEnumerator(name);
     enumbuilder.setIsFlag(flag);
     enumbuilder.setIsScoped(scoped);
+    for (const auto &item : entries) {
+        if (item.second.typeId() == QMetaType::ULongLong)
+            enumbuilder.addKey(item.first, item.second.toULongLong());
+        else
+            enumbuilder.addKey(item.first, item.second.toInt());
+    }
 
-    for (const auto &item : entries)
-        enumbuilder.addKey(item.first, item.second);
     m_dirty = true;
+    return enumbuilder;
 }
 
 void MetaObjectBuilderPrivate::removeProperty(int index)
@@ -676,16 +685,26 @@ void MetaObjectBuilderPrivate::parsePythonType(PyTypeObject *type)
         AutoDecRef items(PyMapping_Items(members));
         Py_ssize_t nr_items = PySequence_Length(items);
 
-        QList<std::pair<QByteArray, int> > entries;
+        MetaObjectBuilder::EnumValues entries;
+        entries.reserve(nr_items);
+        bool is64bit = false;
         for (Py_ssize_t idx = 0; idx < nr_items; ++idx) {
             AutoDecRef item(PySequence_GetItem(items, idx));
             AutoDecRef key(PySequence_GetItem(item, 0));
             AutoDecRef member(PySequence_GetItem(item, 1));
             AutoDecRef value(PyObject_GetAttr(member, Shiboken::PyName::value()));
             const auto *ckey = String::toCString(key);
-            auto ivalue = PyLong_AsSsize_t(value);
-            entries.push_back(std::make_pair(ckey, int(ivalue)));
+            QVariant valueV = longToEnumValue(value.object());
+            if (valueV.typeId() == QMetaType::ULongLong)
+                is64bit = true;
+            entries.append(std::make_pair(QByteArray(ckey), valueV));
         }
-        addEnumerator(name, isFlag, true, entries);
+        auto enumBuilder = addEnumerator(name, isFlag, true, entries);
+        QByteArray qualifiedName = ensureBuilder()->className() + "::"_ba + name;
+        auto *typeObject = reinterpret_cast<PyTypeObject *>(obEnumType);
+        auto metaType = is64bit
+            ? PySide::QEnum::createGenericEnum64MetaType(qualifiedName, typeObject)
+            : PySide::QEnum::createGenericEnumMetaType(qualifiedName, typeObject);
+        enumBuilder.setMetaType(metaType);
     }
 }

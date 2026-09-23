@@ -4,6 +4,7 @@
 #include "pysidedynamiccommon_p.h"
 #include "pysidedynamicenum_p.h"
 
+#include <sbkpep.h>
 #include <sbkstring.h>
 
 #include <QtCore/qmetaobject.h>
@@ -96,7 +97,7 @@ int create_managed_py_enums(PyObject *self, QMetaObject *meta)
     if (PyObject_SetAttrString(self, "_enum_data", enum_data) < 0) {
         PyErr_Print();
         qWarning() << "Failed to set _enum_data attribute on type"
-                   << reinterpret_cast<PyTypeObject *>(self)->tp_name;
+                   << PepType_GetFullyQualifiedNameStr(reinterpret_cast<PyTypeObject *>(self));
         return -1;
     }
     Py_DECREF(enum_data);
