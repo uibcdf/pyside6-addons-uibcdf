@@ -27,7 +27,7 @@ explicit `--python` variant, and their smoke-script names are neutral. A
 no-download render confirms four distinct build strings and matching host
 Python variants. The earlier 3.11–3.13 full builds used disposable pin
 substitutions. Subsequent full builds of the revised recipes passed for
-Python 3.12 and 3.13 on Linux, with correct finalized `python` and
+Python 3.12, 3.13, and 3.14 on Linux, with correct finalized `python` and
 `python_abi` requirements. Build the revised recipes in the remaining
 interpreter and platform cells before staging.
 

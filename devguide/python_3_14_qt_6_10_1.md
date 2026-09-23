@@ -155,15 +155,49 @@ restricted sandbox, so that display test ran outside it; a nonfatal D-Bus
 warning remained. This is a complete **local Linux/Python 3.13 package gate**,
 not a staging or public-channel claim.
 
+## Revised-recipe Linux/Python 3.14 and Viewer Qt gate
+
+On 23 September 2026, the committed variant-selected Shiboken, Essentials,
+and Addons recipes also built with `conda build --python 3.14` and
+`CPU_COUNT=12`. Each Conda package test passed. The new local SHA-256 values
+are:
+
+| Binding | Revised-recipe Python 3.14 SHA-256 |
+| --- | --- |
+| Shiboken | `0db537f21bac4ef73e01ccfe34fc098f9e49c61f9cc71d858454c7d9747d0391` |
+| Essentials | `dee2b2dc0092c50ab1a7bbeba215b793d5c1a2d991b15efc3a0aafcb7f290c1c` |
+| Addons | `a1d3a168f1fb39293d652be2979db6332abdc87d88f25dc01b86d809b8fcb8c2` |
+
+All three final records require `python >=3.14,<3.15.0a0` and
+`python_abi 3.14.* *_cp314`. A fresh offline environment installed Python
+3.14.7, Qt 6.10.1, and all five UIBCDF packages without canonical PySide6.
+After explicitly reinstalling Addons from the byte-identical indexed local
+channel file to replace a stale package-cache URL, all five installed
+`conda-meta` records named that local channel and their recorded SHA-256
+values matched its files. Both the ordinary smoke and the local-HTML
+WebEngine smoke under Xvfb passed.
+
+For an application-level check, an existing MolSysViewer Python 3.14 test
+environment was cloned, then all five exact local-channel files were
+reinstalled into the clone. The installed MolSysMT and MolSysViewer development
+packages remained in that environment; no canonical PySide6 was introduced.
+With `pytest --receptor=llm --import-mode=importlib`, the real Qt event
+transport, two-generation payload delivery, and live-window tests passed
+(three tests). The opt-in full-render test passed separately under Xvfb with
+SwiftShader (one test), reaching a completed molecular render. This validates
+the new local Qt files against the installed development viewer, **not** a
+resolver-consistent versioned MolSysMT/Viewer pair or a staged/public channel.
+
 ## Remaining gates
 
-1. Build and test the revised variant-selected recipes on Python 3.11,
-   and 3.14; the revised 3.12 and 3.13 cells passed locally. Inspect finalized
+1. Build and test the revised variant-selected recipes on Python 3.11;
+   the revised 3.12, 3.13, and 3.14 cells passed locally. Inspect finalized
    runtime requirements and repeat the clean-install gate on each claimed
    platform.
 2. Repeat the MolSysViewer Qt-host gate against exact staged-channel packages
    rather than local artifacts. The local transport, live window, resources,
-   and full software-render gate have passed on Linux/Python 3.14.7.
+   and full software-render gate passed with the revised 3.14 packages on
+   Linux/Python 3.14.7.
 3. Review the old direct-upload script and release workflow before use. The
    candidate cannot be promoted by treating a successful local build as a
    coordinated family release.
