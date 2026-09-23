@@ -56,9 +56,37 @@ run from an activated Conda environment with a display or Xvfb. The package
 does **not** globally disable Chromium sandboxing; the flags above were only
 used for this local headless test.
 
+## Python 3.11 regression experiment
+
+On 23 September 2026, disposable copies of the three binding recipes changed
+their Python host/run pins from 3.14 to 3.11. Shiboken and Essentials built
+and passed Conda package tests first. Addons then built against those exact
+local channels, plus the same Qt 6.10.1 Positioning and WebEngine artifacts;
+its Conda package tests passed. The Addons result is
+`pyside6-addons-uibcdf-6.10.1-py311h3fd9d12_0.conda`, SHA-256
+`ca933d60220aa7fd54a42d6d63a5d868126779de88a9ef1935d360df8e38964e`.
+
+An independent offline Conda environment installed Python 3.11.16,
+`qt6-main=6.10.1`, and the five local UIBCDF packages. Shiboken, QtCore,
+QtPositioning, and QtWebEngineWidgets imported; a `QGeoCoordinate` was valid;
+canonical `PySide6` was absent. The version-adjusted Addons smoke passed,
+including local HTML loading through `QWebEngineView` under Xvfb. The first
+Xvfb attempt inside the restricted execution sandbox could not connect to
+its display; repeating that test with display permission passed. This was
+an execution-environment failure, not a demonstrated package defect.
+
+This is a Linux-64 Python 3.11 regression experiment, not a second release
+candidate: the checked-in recipe still targets 3.14, and the disposable
+3.11 recipe retains 3.14-specific descriptive text. Before publishing a
+multi-minor matrix, generalize those descriptions and smoke names, test the
+actual committed recipes, and repeat clean installs for every supported
+Python/platform cell. See [family build practices](qt_family_build_practices.md)
+for the build order, local-channel and disk-space lessons.
+
 ## Remaining gates
 
-1. Run 3.11–3.13 regressions and build/test on each supported platform.
+1. Complete 3.12–3.13 regressions, turn the disposable 3.11 experiment into
+   a truthful committed recipe, and build/test on each supported platform.
 2. Repeat the MolSysViewer Qt-host gate against exact staged-channel packages
    rather than local artifacts. The local transport, live window, resources,
    and full software-render gate have passed on Linux/Python 3.14.7.

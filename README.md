@@ -12,8 +12,11 @@ five-package installation. A local HTML page loaded through
 `QWebEngineView` under Xvfb with Conda activation, and MolSysViewer's real
 Qt transport, window, and opt-in full-render tests passed in a separate
 Python 3.14 environment containing the five UIBCDF packages but no canonical
-PySide6. Python 3.11–3.13 regression, macOS and Windows builds, and
-staged-channel validation remain before broader support or publication.
+PySide6. A separate local Linux/Python 3.11 regression experiment passed the
+five-package clean-install and WebEngine smoke gates, but its recipe is not
+yet the checked-in candidate. Python 3.12–3.13 regressions, macOS and Windows
+builds, and staged-channel validation remain before broader support or
+publication.
 
 The aligned 6.10.1 family is built in dependency order:
 
@@ -26,7 +29,7 @@ The binding source is a selected subset of Qt for Python `pyside-setup`
 v6.10.1, with the `PySide6_uibcdf` namespace preserved. The Conda recipe
 builds the bindings from source; the old 6.9.2 manifest-driven prototype is
 historical, not the current build route. See [devguide](devguide/README.md)
-for provenance, local validation, and release limitations.
+for provenance, local validation, build practices, and release limitations.
 
 Do not run `devtools/conda-build/build-and-upload.sh` for this candidate: it
 still represents the older direct-upload route. Publication needs a reviewed,
