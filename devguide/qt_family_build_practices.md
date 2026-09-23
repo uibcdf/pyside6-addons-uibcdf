@@ -26,10 +26,10 @@ The candidate binding recipes now select their interpreter from Conda's
 explicit `--python` variant, and their smoke-script names are neutral. A
 no-download render confirms four distinct build strings and matching host
 Python variants. The earlier 3.11–3.13 full builds used disposable pin
-substitutions. A subsequent full build of the revised recipe passed for
-Python 3.12 on Linux, with correct finalized `python` and `python_abi`
-requirements. Build the revised recipe in the remaining interpreter and
-platform cells before staging.
+substitutions. Subsequent full builds of the revised recipes passed for
+Python 3.12 and 3.13 on Linux, with correct finalized `python` and
+`python_abi` requirements. Build the revised recipes in the remaining
+interpreter and platform cells before staging.
 
 ## Space and parallelism
 
@@ -73,6 +73,12 @@ package defaults. Inspect solver provenance and verify that canonical
 `pyside6` was not pulled into the intended UIBCDF-only route. Any
 co-installation with canonical PySide6 is a separate, tracked packaging
 decision, not proof of the UIBCDF-only route.
+Conda may reuse a package-cache record whose URL points to a build directory
+even when an indexed local channel contains the same byte-identical archive.
+For a strict local-channel provenance check, compare SHA-256 values and
+explicitly reinstall the indexed-channel file in the isolated environment;
+then inspect each installed `conda-meta` record. Never infer provenance solely
+from the solver's requested channel list.
 If Xvfb cannot connect to its display in a restricted execution environment,
 check the display permission separately before treating it as a binding or
 package failure.

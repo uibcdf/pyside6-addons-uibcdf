@@ -128,10 +128,37 @@ five-package channel-provenance or staging claim. See
 [family build practices](qt_family_build_practices.md) for the build order,
 local-channel and disk-space lessons.
 
+## Revised-recipe Linux/Python 3.13 gate
+
+On 23 September 2026, the committed variant-selected Shiboken, Essentials,
+and Addons recipes built in dependency order with `conda build --python 3.13`
+and `CPU_COUNT=12`. All three Conda package tests passed. The local artifacts
+have these SHA-256 values:
+
+| Binding | Revised-recipe Python 3.13 SHA-256 |
+| --- | --- |
+| Shiboken | `8a944dd7c0fb74d2978d882fe64df519adaf047e17f4176bb24708ce25b183c5` |
+| Essentials | `6f63b866862098f8874609260afdc85682b2d93301bd6a44aaa59d916db481db` |
+| Addons | `7cf4718bae6bb9e95f1815e50cab711b7a03ac848eff86230a2c4144fcd6ef00` |
+
+Their finalized runtime metadata requires `python >=3.13,<3.14.0a0` and
+`python_abi 3.13.* *_cp313`. Essentials and Addons consumed the exact local
+Shiboken candidate; Addons also consumed the local Essentials, Positioning,
+and WebEngine 6.10.1 artifacts. A fresh offline Conda environment installed
+Python 3.13.15, Qt 6.10.1, and all five UIBCDF packages without canonical
+`pyside6`. Conda initially attributed Addons to its build directory because
+the same bytes were in the package cache; an explicit reinstall from the
+indexed local-channel file made all five installed package records name the
+local channel. The ordinary smoke passed, and the optional WebEngine smoke
+loaded local HTML under Xvfb. Xvfb could not open its display inside the
+restricted sandbox, so that display test ran outside it; a nonfatal D-Bus
+warning remained. This is a complete **local Linux/Python 3.13 package gate**,
+not a staging or public-channel claim.
+
 ## Remaining gates
 
 1. Build and test the revised variant-selected recipes on Python 3.11,
-   3.13, and 3.14; the revised 3.12 cell passed locally. Inspect finalized
+   and 3.14; the revised 3.12 and 3.13 cells passed locally. Inspect finalized
    runtime requirements and repeat the clean-install gate on each claimed
    platform.
 2. Repeat the MolSysViewer Qt-host gate against exact staged-channel packages
