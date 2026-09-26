@@ -4,6 +4,8 @@ Current checkpoint: [Python 3.14 / Qt 6.10.1 candidate](python_3_14_qt_6_10_1.md
 
 Operational build and validation lessons for the aligned family are in
 [local Qt/PySide family build practices](qt_family_build_practices.md).
+The [Qt 6.10.1 release route](qt_6_10_1_release_route.md) is the current
+staging and promotion checklist; it does not assert that publication passed.
 
 Historical context for the 6.9.2 prototype is in
 [bootstrap_6.9.2.md](bootstrap_6.9.2.md) and

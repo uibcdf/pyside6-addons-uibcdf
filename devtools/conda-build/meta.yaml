@@ -29,7 +29,7 @@ requirements:
     - pyside6-essentials-uibcdf ==6.10.1
   run:
     - python
-    - qt6-main >=6.10.1,<6.11.0a0
+    - qt6-main =6.10.1
     - qt6-positioning-uibcdf ==6.10.1
     - qt6-webengine-uibcdf ==6.10.1
     - libopengl
@@ -37,6 +37,9 @@ requirements:
     - pyside6-essentials-uibcdf ==6.10.1
     - libgcc
     - libstdcxx
+  # Do not silently combine this family with canonical pyside6.
+  run_constrained:
+    - pyside6 <0
 
 test:
   source_files:

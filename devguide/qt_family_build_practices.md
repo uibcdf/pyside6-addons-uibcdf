@@ -28,8 +28,9 @@ no-download render confirms four distinct build strings and matching host
 Python variants. The earlier 3.11–3.13 full builds used disposable pin
 substitutions. Subsequent full builds of the revised recipes passed for
 Python 3.12, 3.13, and 3.14 on Linux, with correct finalized `python` and
-`python_abi` requirements. Build the revised recipes in the remaining
-interpreter and platform cells before staging.
+`python_abi` requirements. Build the revised 3.11 Linux cell before a
+four-interpreter Linux publication. macOS and Windows are separate future
+targets, not prerequisites for the Linux-only candidate.
 
 ## Space and parallelism
 
@@ -83,6 +84,6 @@ If Xvfb cannot connect to its display in a restricted execution environment,
 check the display permission separately before treating it as a binding or
 package failure.
 
-Local Linux results do not replace the supported-platform matrix, staged
-channel installs, MolSysViewer integration gate, or coordinated release
-decision. Never invoke the old direct-upload script for this candidate.
+Local Linux results do not replace staged-channel installs, MolSysViewer
+integration, or a coordinated release decision. The old direct-upload script
+now fails closed; follow the [6.10.1 release route](qt_6_10_1_release_route.md).

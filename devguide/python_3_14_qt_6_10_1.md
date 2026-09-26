@@ -3,6 +3,25 @@
 Status on 23 September 2026: local Linux-64 candidate built and tested; no
 tag, GitHub Release, or Conda upload has been made from this branch.
 
+## Publication preparation — 26 September 2026
+
+The five candidate branches now have manual, exact-commit GitHub workflows
+that upload only to the `staging` label. Their previous release-triggered
+direct-to-`main` route and historical direct-upload shell scripts are disabled
+for this candidate. The build action is pinned to `v2.2.2`, and compilation
+is capped at 12 workers on the binding runners. Shiboken's workflow build
+environment now pins Qt 6.10.1 instead of the stale 6.9.2. The three binding
+recipes reject co-installation with canonical `pyside6` through an optional
+Conda solver constraint, because installed paths still overlap. Addons pins
+`qt6-main` exactly at runtime instead of accepting an unvalidated 6.10.x
+update. The new `devtools/preflight_qt_family.py` rejects mixed Qt pins,
+source drift, missing coexistence constraints and wrong Python build variants
+before expensive builds; its negative tests pass locally.
+
+This is release-route preparation, **not** evidence of a 6.10.1 staging or
+public-channel upload. The exact Linux release sequence and remaining gates
+are in [the 6.10.1 release route](qt_6_10_1_release_route.md).
+
 ## Source and boundary
 
 - Qt for Python source: `qt/pyside-setup` tag `v6.10.1`, peeled commit
@@ -198,8 +217,9 @@ resolver-consistent versioned MolSysMT/Viewer pair or a staged/public channel.
    rather than local artifacts. The local transport, live window, resources,
    and full software-render gate passed with the revised 3.14 packages on
    Linux/Python 3.14.7.
-3. Review the old direct-upload script and release workflow before use. The
-   candidate cannot be promoted by treating a successful local build as a
-   coordinated family release.
+3. The old direct-upload path is now disabled and the staging workflow is
+   prepared; prove its actual runs produce the intended exact artifacts and
+   retained evidence. A successful local build alone is not a coordinated
+   family release.
 4. Stage the aligned family, run clean-channel installations, and publish only
    after the shared release gates pass.

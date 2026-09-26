@@ -16,9 +16,11 @@ PySide6. Separate local Linux/Python 3.11, 3.12, and 3.13 regression
 experiments passed five-package clean-install and WebEngine smoke gates.
 Those first builds used disposable recipe pin substitutions. The revised
 variant-selected Shiboken, Essentials, and Addons recipes have since passed
-a complete local Python 3.12 build and clean-install WebEngine smoke.
-The other three revised-recipe interpreter cells, macOS and Windows builds,
-and staged-channel validation remain before broader support or publication.
+complete local Python 3.12, 3.13, and 3.14 builds and clean-install
+WebEngine smokes. Python 3.11 still needs that final-recipe gate. The first
+public candidate is intentionally Linux-64 only; macOS and Windows require
+separate work and are not implied by the core MolSysMT/MolSysViewer matrix.
+Staged-channel validation is still required before Linux publication.
 
 The aligned 6.10.1 family is built in dependency order:
 
@@ -33,13 +35,17 @@ builds the bindings from source; the old 6.9.2 manifest-driven prototype is
 historical, not the current build route. See [devguide](devguide/README.md)
 for provenance, local validation, build practices, and release limitations.
 
-Do not run `devtools/conda-build/build-and-upload.sh` for this candidate: it
-still represents the older direct-upload route. Publication needs a reviewed,
-coordinated family staging/release procedure.
+The historical `devtools/conda-build/build-and-upload.sh` entry point now
+fails closed. The manual GitHub Actions workflow builds and uploads only to
+the `staging` label, from an explicitly named candidate commit. Promotion
+to `main` requires a separate exact-artifact decision after the family gate;
+see [the build practices](devguide/qt_family_build_practices.md).
 
-Canonical PySide6 co-installation is a separate future packaging decision:
-the Python import namespaces differ already, but some CMake, tool and shared
-data installation paths still overlap. See
+Canonical PySide6 co-installation is deliberately unsupported for this 6.10.1
+candidate. The Python import namespaces differ, but some CMake, tool and
+shared-data paths still overlap; the three binding recipes therefore add a
+Conda `run_constrained` conflict with canonical `pyside6`. A future
+collision-free design remains tracked in
 [`shiboken6-uibcdf#2`](https://github.com/uibcdf/shiboken6-uibcdf/issues/2)
 and
 [`pyside6-essentials-uibcdf#2`](https://github.com/uibcdf/pyside6-essentials-uibcdf/issues/2).
