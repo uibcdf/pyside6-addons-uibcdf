@@ -9,7 +9,8 @@ The five candidate branches now have manual, exact-commit GitHub workflows
 that upload only to the `staging` label. Their previous release-triggered
 direct-to-`main` route and historical direct-upload shell scripts are disabled
 for this candidate. The build action is pinned to `v2.2.2`, and compilation
-is capped at 12 workers on the binding runners. Shiboken's workflow build
+is capped at four workers on standard hosted Linux runners; local builds
+remain capped at 12 on this development host. Shiboken's workflow build
 environment now pins Qt 6.10.1 instead of the stale 6.9.2. The three binding
 recipes reject co-installation with canonical `pyside6` through an optional
 Conda solver constraint, because installed paths still overlap. Addons pins
@@ -21,6 +22,14 @@ before expensive builds; its negative tests pass locally.
 This is release-route preparation, **not** evidence of a 6.10.1 staging or
 public-channel upload. The exact Linux release sequence and remaining gates
 are in [the 6.10.1 release route](qt_6_10_1_release_route.md).
+
+The first `qt6-positioning-uibcdf` staging workflow subsequently passed and
+the public Anaconda API showed exactly one 6.10.1 file under `staging`, with
+SHA-256 `adb40b01ebd0a216ccda4c2e40e0532a1dccdec5a6bcd26eb6b27ec8aac4272f`
+and no `main` label. The first Shiboken dispatch remained queued on an
+unavailable `self-hosted` runner and was cancelled without building; the
+three binding workflows were moved to standard hosted Linux runners before
+the next dispatch. One staged native package is not a staged family.
 
 ## Source and boundary
 

@@ -55,6 +55,8 @@ family.
 Before running a local build, check disk space and allocate package cache,
 temporary files, and the Conda build root on a filesystem with room for the
 entire Essentials build. Limit this host to at most 12 compilation workers.
+The staging workflows use standard hosted Linux runners with four workers
+for binding builds; do not assume a self-hosted runner exists in these repos.
 See [family build practices](qt_family_build_practices.md) for the exact
 scratch layout and runtime lessons.
 
