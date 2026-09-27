@@ -1,0 +1,33 @@
+name: Register Qt 6.10.1 installed-family validation dispatch
+
+# GitHub requires workflow_dispatch on the default branch. Only the 6.10.1
+# candidate branch contains a valid manifest and the real validation jobs.
+on:
+  workflow_dispatch:
+    inputs:
+      expected_commit:
+        description: Exact candidate validation commit
+        required: true
+        type: string
+      source:
+        description: Artifact label to validate
+        required: true
+        type: choice
+        options: [staging, public]
+      python_version:
+        description: One Python cell or the complete matrix
+        required: true
+        type: choice
+        options: [all, "3.11", "3.12", "3.13", "3.14"]
+
+permissions:
+  contents: read
+
+jobs:
+  candidate_branch_required:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Reject execution from the 6.9.2 branch
+        run: |
+          echo "::error::Dispatch with --ref python-3.14-qt-6.10.1"
+          exit 1
