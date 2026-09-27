@@ -44,6 +44,21 @@ filename = "pyside6-essentials-uibcdf-6.10.1-py311h3fd9d12_0.conda"
 sha256 = "3ff6815feabf6a10da6c0c49a104787cbda3493cb1732beb0c5c562c82faf06f"
 run_id = 36280574560
 
+[artifacts.pyside6-essentials-uibcdf."3.12"]
+filename = "pyside6-essentials-uibcdf-6.10.1-py312h3fd9d12_0.conda"
+sha256 = "094012d97552a01b128e4508b2707e63653638577e40599e81e7b53afcc22a69"
+run_id = 36303053553
+
+[artifacts.pyside6-essentials-uibcdf."3.13"]
+filename = "pyside6-essentials-uibcdf-6.10.1-py313h3fd9d12_0.conda"
+sha256 = "9d47cb9f1a4016b3f2d39610e550af4b6dd2705ed836edc4d7a7c44b3fbbb269"
+run_id = 36303054137
+
+[artifacts.pyside6-essentials-uibcdf."3.14"]
+filename = "pyside6-essentials-uibcdf-6.10.1-py314h3fd9d12_0.conda"
+sha256 = "482407d2791df9a80879fc3e22adf5953f8101137fbab25f95b18749cdffe2c2"
+run_id = 36303054992
+
 [artifacts.pyside6-addons-uibcdf."3.11"]
 filename = "pyside6-addons-uibcdf-6.10.1-py311h3fd9d12_0.conda"
 sha256 = "4176c0b8ea740d56f13d93bd9d688e586ebb2d4b5cfd2a19d8e72ed9f73dd4ef"

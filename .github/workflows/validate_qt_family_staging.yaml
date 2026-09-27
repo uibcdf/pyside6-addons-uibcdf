@@ -1,4 +1,5 @@
 name: Validate installed Qt/PySide family 6.10.1 (Linux)
+run-name: Qt 6.10.1 ${{ inputs.source }} ${{ inputs.python_version }} at ${{ inputs.expected_commit }}
 
 on:
   workflow_dispatch:
@@ -80,6 +81,13 @@ jobs:
         shell: bash -el {0}
         run: >-
           python devtools/validate_qt_install.py
+          --manifest devguide/qt_6_10_1_artifacts.toml
+          --source "${{ inputs.source }}"
+          --python "${{ matrix.python }}"
+      - name: Reject canonical PySide6 coexistence in the solver
+        shell: bash -el {0}
+        run: >-
+          python devtools/check_canonical_conflict.py
           --manifest devguide/qt_6_10_1_artifacts.toml
           --source "${{ inputs.source }}"
           --python "${{ matrix.python }}"

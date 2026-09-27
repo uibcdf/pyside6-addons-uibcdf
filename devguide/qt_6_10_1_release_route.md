@@ -97,7 +97,10 @@ are recorded in [`qt_6_10_1_artifacts.toml`](qt_6_10_1_artifacts.toml).
 `validate_qt_family_staging.yaml` installs the exact family plus public
 MolSysMT 0.22.4/MolSysViewer 0.23.4 in a clean environment and compares
 every installed Conda record to that manifest before testing WebEngine and
-Viewer. It extracts the two real transport probe scripts from Viewer tag
+Viewer. A second clean-solve check first proves that canonical PySide6 6.10.1
+is available for the interpreter, then requires a diagnosed solver conflict
+when it is requested alongside the exact UIBCDF Addons build. It extracts
+the two real transport probe scripts from Viewer tag
 0.23.4 without importing that source checkout, then runs them against the
 installed Viewer under Xvfb with the `xcb` platform. The original pytest
 wrappers force `offscreen`, which does not initialize EGL for Qt 6.10.1 on
