@@ -97,7 +97,14 @@ are recorded in [`qt_6_10_1_artifacts.toml`](qt_6_10_1_artifacts.toml).
 `validate_qt_family_staging.yaml` installs the exact family plus public
 MolSysMT 0.22.4/MolSysViewer 0.23.4 in a clean environment and compares
 every installed Conda record to that manifest before testing WebEngine and
-Viewer. Dispatch one early Python cell with `python_version=3.11`; the
+Viewer. It extracts the two real transport probe scripts from Viewer tag
+0.23.4 without importing that source checkout, then runs them against the
+installed Viewer under Xvfb with the `xcb` platform. The original pytest
+wrappers force `offscreen`, which does not initialize EGL for Qt 6.10.1 on
+the hosted runner; a failing offscreen wrapper is not silently counted as a
+passing integration test. The Xvfb probes verify the same event and payload
+contracts, not visible-window or GPU rendering. Dispatch one early Python
+cell with `python_version=3.11`; the
 release gate is `python_version=all` and requires all four jobs to pass.
 The validation workflow may be committed after the source-build commit;
 this does not change which five source commits produced the staged bytes.

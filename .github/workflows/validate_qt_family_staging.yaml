@@ -76,8 +76,6 @@ jobs:
             pyside6-addons-uibcdf=6.10.1
             molsysmt=0.22.4
             molsysviewer=0.23.4
-            pytest
-            pytest-receptor
       - name: Verify exact digests, channel, ABI, and installed imports
         shell: bash -el {0}
         run: >-
@@ -95,14 +93,11 @@ jobs:
         env:
           QTWEBENGINE_DISABLE_SANDBOX: "1"
         run: xvfb-run -a python devtools/smoke_pyside.py --webengine
-      - name: Run installed Viewer Qt transport integration
+      - name: Run tagged Viewer Qt transport probes under Xvfb
         shell: bash -el {0}
-        env:
-          MOLSYSVIEWER_TEST_INSTALLED: "1"
         run: >-
-          python -m pytest --receptor=llm --import-mode=importlib
+          xvfb-run -a python devtools/verify_viewer_qt_transport.py
           viewer-tests/tests/test_standalone.py
-          -k 'qt_event_transport_smoke_real_qt or qt_payload_refs_replace_across_two_real_generations'
       - name: Retain the exact resolved environment
         shell: bash -el {0}
         run: >-
