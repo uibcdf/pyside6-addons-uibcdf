@@ -1,0 +1,129 @@
+name: Promote one exact Qt family 6.10.1 artifact
+
+# A successful four-cell installed-family staging gate is required. This
+# workflow adds the main label to the same bytes; it never rebuilds a package.
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_sha:
+        description: Exact Addons commit containing the complete artifact manifest and successful gate
+        required: true
+        type: string
+      gate_run_id:
+        description: Successful four-cell staging validation run ID
+        required: true
+        type: string
+      package_spec:
+        description: Exact uibcdf/name/6.10.1/linux-64/filename
+        required: true
+        type: string
+      sha256:
+        description: Independently observed SHA-256 of that staged file
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qt6101-promote-${{ inputs.package_spec }}
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Reject malformed selectors before checkout
+        shell: bash
+        env:
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+          GATE_RUN_ID: ${{ inputs.gate_run_id }}
+          EXPECTED_SHA256: ${{ inputs.sha256 }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/6.9.2
+          [[ "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$GATE_RUN_ID" =~ ^[0-9]+$ ]]
+          [[ "$EXPECTED_SHA256" =~ ^[0-9a-f]{64}$ ]]
+      - name: Check out the promotion verifier from the default branch
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Check out the exact candidate manifest
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.candidate_sha }}
+          path: candidate
+          persist-credentials: false
+      - name: Verify complete staging gate and exact manifest membership
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+          GATE_RUN_ID: ${{ inputs.gate_run_id }}
+          PACKAGE_SPEC: ${{ inputs.package_spec }}
+          EXPECTED_SHA256: ${{ inputs.sha256 }}
+        run: |
+          set -euo pipefail
+          test "$(git -C candidate rev-parse HEAD)" = "$CANDIDATE_SHA"
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GATE_RUN_ID" > "$RUNNER_TEMP/qt-gate-run.json"
+          attempt="$(jq -r .run_attempt "$RUNNER_TEMP/qt-gate-run.json")"
+          [[ "$attempt" =~ ^[1-9][0-9]*$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GATE_RUN_ID/attempts/$attempt/jobs?per_page=100" > "$RUNNER_TEMP/qt-gate-jobs.json"
+          python3 devtools/verify_qt_promotion.py \
+            --manifest candidate/devguide/qt_6_10_1_artifacts.toml \
+            --run-json "$RUNNER_TEMP/qt-gate-run.json" \
+            --jobs-json "$RUNNER_TEMP/qt-gate-jobs.json" \
+            --candidate-sha "$CANDIDATE_SHA" \
+            --gate-run-id "$GATE_RUN_ID" \
+            --package-spec "$PACKAGE_SPEC" \
+            --sha256 "$EXPECTED_SHA256"
+      - name: Set up the authenticated Anaconda client
+        uses: mamba-org/setup-micromamba@v3.2.1
+        with:
+          environment-name: promote
+          condarc: |
+            channels:
+              - uibcdf
+              - conda-forge
+            channel_priority: strict
+          create-args: python=3.13 anaconda-client
+      - name: Promote only the digest-verified staged file
+        id: promotion
+        uses: uibcdf/action-build-and-upload-conda-packages/promote@v2.2.2
+        with:
+          package-spec: ${{ inputs.package_spec }}
+          expected-sha256: ${{ inputs.sha256 }}
+          from-label: staging
+          to-label: main
+          token: ${{ secrets.ANACONDA_UIBCDF_TOKEN }}
+      - name: Retain the exact promotion receipt
+        if: ${{ always() && steps.promotion.outputs.receipt != '' }}
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: qt6101-promotion-${{ github.run_id }}
+          path: ${{ steps.promotion.outputs.receipt }}
+          if-no-files-found: error
+          retention-days: 30
+      - name: Independently verify the public Anaconda record
+        shell: bash
+        env:
+          PACKAGE_SPEC: ${{ inputs.package_spec }}
+          EXPECTED_SHA256: ${{ inputs.sha256 }}
+        run: |
+          set -euo pipefail
+          IFS=/ read -r owner name version subdir filename <<< "$PACKAGE_SPEC"
+          for attempt in {1..12}; do
+            if curl -fsSL "https://api.anaconda.org/release/$owner/$name/$version" |
+              jq -e --arg basename "$subdir/$filename" --arg sha "$EXPECTED_SHA256" \
+                '.distributions | any(.[]; .basename == $basename and .sha256 == $sha and (.labels | index("main") != null))' \
+                > /dev/null; then
+              echo "PASS public label and SHA-256: $PACKAGE_SPEC"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::The public Anaconda record did not expose the exact promoted artifact"
+          exit 1
