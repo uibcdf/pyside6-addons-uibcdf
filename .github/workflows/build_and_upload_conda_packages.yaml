@@ -1,4 +1,5 @@
 name: Stage PySide6 Addons 6.10.1 (Linux)
+run-name: Stage Addons 6.10.1 Python ${{ inputs.python_version }} from ${{ inputs.expected_commit }}
 
 # Stage Shiboken, Essentials, Positioning and WebEngine 6.10.1 first.
 # GitHub Releases must not upload this coordinated family directly to main.
@@ -30,15 +31,24 @@ jobs:
     env:
       CPU_COUNT: "4"
     steps:
-      - uses: actions/checkout@v4
-      - name: Verify the immutable candidate input
+      - name: Verify the immutable source selector
         shell: bash
         env:
           EXPECTED_COMMIT: ${{ inputs.expected_commit }}
         run: |
           set -euo pipefail
           test "$GITHUB_REF" = refs/heads/python-3.14-qt-6.10.1
-          test "$GITHUB_SHA" = "$EXPECTED_COMMIT"
+          test "$EXPECTED_COMMIT" = c45844a0bbacfd9b934a09dfe39768cb9e1a965d
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.expected_commit }}
+          persist-credentials: false
+      - name: Verify the checked-out source
+        shell: bash
+        env:
+          EXPECTED_COMMIT: ${{ inputs.expected_commit }}
+        run: |
+          set -euo pipefail
           test "$(git rev-parse HEAD)" = "$EXPECTED_COMMIT"
       - uses: mamba-org/setup-micromamba@v2
         with:

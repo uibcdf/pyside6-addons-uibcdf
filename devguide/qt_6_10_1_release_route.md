@@ -103,6 +103,11 @@ The validation workflow may be committed after the source-build commit;
 this does not change which five source commits produced the staged bytes.
 Record both the source commits and the validation run commit, rather than
 silently treating them as identical.
+For this 6.10.1 Addons candidate, the staging workflow pins its checkout to
+the recorded Addons source commit even though the workflow branch later
+advanced to add this validator. Its `expected_commit` input is the source
+commit, not the newer workflow commit. This preserves a single Addons source
+across all four Python artifacts.
 
 ## Public decision
 
