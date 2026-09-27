@@ -1,0 +1,116 @@
+name: Validate installed Qt/PySide family 6.10.1 (Linux)
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_commit:
+        description: Exact commit containing the validation manifest
+        required: true
+        type: string
+      source:
+        description: Artifact label to validate
+        required: true
+        type: choice
+        options: [staging, public]
+      python_version:
+        description: One early cell or the complete four-interpreter release gate
+        required: true
+        type: choice
+        options: [all, "3.11", "3.12", "3.13", "3.14"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qt6101-installed-family-${{ inputs.source }}-${{ inputs.python_version }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Python ${{ matrix.python }} · ${{ inputs.source }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ${{ fromJSON(inputs.python_version == 'all' && '["3.11","3.12","3.13","3.14"]' || format('["{0}"]', inputs.python_version)) }}
+    steps:
+      - name: Check out the exact family validation tools
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify the immutable validation input
+        shell: bash
+        env:
+          EXPECTED_COMMIT: ${{ inputs.expected_commit }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/python-3.14-qt-6.10.1
+          [[ "$EXPECTED_COMMIT" =~ ^[0-9a-f]{40}$ ]]
+          test "$GITHUB_SHA" = "$EXPECTED_COMMIT"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_COMMIT"
+      - name: Check out the installed Viewer's exact test source
+        uses: actions/checkout@v4
+        with:
+          repository: uibcdf/molsysviewer
+          ref: 0.23.4
+          path: viewer-tests
+          persist-credentials: false
+      - name: Install the exact staged family with the public core pair
+        uses: mamba-org/setup-micromamba@v3.2.1
+        with:
+          environment-name: qt-family-test
+          condarc: |
+            channels:
+              - ${{ inputs.source == 'staging' && 'uibcdf/label/staging' || 'uibcdf' }}
+              - uibcdf
+              - conda-forge
+            channel_priority: strict
+          create-args: >-
+            python=${{ matrix.python }}
+            qt6-main=6.10.1
+            qt6-positioning-uibcdf=6.10.1
+            qt6-webengine-uibcdf=6.10.1
+            shiboken6-uibcdf=6.10.1
+            pyside6-essentials-uibcdf=6.10.1
+            pyside6-addons-uibcdf=6.10.1
+            molsysmt=0.22.4
+            molsysviewer=0.23.4
+            pytest
+            pytest-receptor
+      - name: Verify exact digests, channel, ABI, and installed imports
+        shell: bash -el {0}
+        run: >-
+          python devtools/validate_qt_install.py
+          --manifest devguide/qt_6_10_1_artifacts.toml
+          --source "${{ inputs.source }}"
+          --python "${{ matrix.python }}"
+      - name: Install the virtual display used by WebEngine smoke tests
+        shell: bash
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq xvfb xauth
+      - name: Run local-HTML WebEngine smoke
+        shell: bash -el {0}
+        env:
+          QTWEBENGINE_DISABLE_SANDBOX: "1"
+        run: xvfb-run -a python devtools/smoke_pyside.py --webengine
+      - name: Run installed Viewer Qt transport integration
+        shell: bash -el {0}
+        run: >-
+          python -m pytest --receptor=llm --import-mode=importlib
+          viewer-tests/tests/test_standalone.py
+          -k 'qt_event_transport_smoke_real_qt or qt_payload_refs_replace_across_two_real_generations'
+      - name: Retain the exact resolved environment
+        shell: bash -el {0}
+        run: >-
+          "$MAMBA_EXE" env export --name qt-family-test --explicit
+          > qt-family-${{ inputs.source }}-py${{ matrix.python }}.txt
+      - name: Upload the bounded environment record
+        if: ${{ always() && hashFiles('qt-family-*.txt') != '' }}
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: qt-family-${{ inputs.source }}-py${{ matrix.python }}
+          path: qt-family-${{ inputs.source }}-py${{ matrix.python }}.txt
+          if-no-files-found: error
+          retention-days: 30

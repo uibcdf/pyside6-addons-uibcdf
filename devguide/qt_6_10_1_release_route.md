@@ -92,6 +92,18 @@ MolSysViewer's real Qt transport/window integration. Record visible-window
 and GPU observations separately from Xvfb evidence. A source/editable
 MolSysViewer does not replace a clean installed-package gate.
 
+The observed filenames, SHA-256 digests, producer run IDs, and build commits
+are recorded in [`qt_6_10_1_artifacts.toml`](qt_6_10_1_artifacts.toml).
+`validate_qt_family_staging.yaml` installs the exact family plus public
+MolSysMT 0.22.4/MolSysViewer 0.23.4 in a clean environment and compares
+every installed Conda record to that manifest before testing WebEngine and
+Viewer. Dispatch one early Python cell with `python_version=3.11`; the
+release gate is `python_version=all` and requires all four jobs to pass.
+The validation workflow may be committed after the source-build commit;
+this does not change which five source commits produced the staged bytes.
+Record both the source commits and the validation run commit, rather than
+silently treating them as identical.
+
 ## Public decision
 
 Promote only after all four staged interpreter cells pass and the

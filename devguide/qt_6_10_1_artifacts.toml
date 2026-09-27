@@ -1,0 +1,50 @@
+# Exact staged Linux-64 artifacts. Add each binding cell only after its
+# producer run succeeds and the Anaconda record independently matches.
+version = "6.10.1"
+
+[candidate_commits]
+qt6-positioning-uibcdf = "cf9fcd63545f7d03aae102f36adf25ca3f86dade"
+qt6-webengine-uibcdf = "336229a22c2f5e09d8be640ffdd7ba1e8366fd26"
+shiboken6-uibcdf = "5ded002c46fa09dca9f4efd7705d4a9fd1a5e982"
+pyside6-essentials-uibcdf = "e351f0c0ee9ad751f01cb295d96e03287594977f"
+pyside6-addons-uibcdf = "c45844a0bbacfd9b934a09dfe39768cb9e1a965d"
+
+[artifacts.qt6-positioning-uibcdf]
+filename = "qt6-positioning-uibcdf-6.10.1-h3fd9d12_0.conda"
+sha256 = "adb40b01ebd0a216ccda4c2e40e0532a1dccdec5a6bcd26eb6b27ec8aac4272f"
+run_id = 36279598954
+
+[artifacts.qt6-webengine-uibcdf]
+filename = "qt6-webengine-uibcdf-6.10.1-0.conda"
+sha256 = "8b895afcc2600c2fd276b91edf263aa3aaba4112b5b673cb38b5b7b70f73eac5"
+run_id = 36280124487
+
+[artifacts.shiboken6-uibcdf."3.11"]
+filename = "shiboken6-uibcdf-6.10.1-py311h3fd9d12_0.conda"
+sha256 = "50dc410000a9177f818665f3903ae6f8d600f6965541cba155a660c2d9175f42"
+run_id = 36280087964
+
+[artifacts.shiboken6-uibcdf."3.12"]
+filename = "shiboken6-uibcdf-6.10.1-py312h3fd9d12_0.conda"
+sha256 = "8ddb58c57374f9d9483cb2262c99c51f9502ef108edce2f6e94afe6c74751dba"
+run_id = 36280570935
+
+[artifacts.shiboken6-uibcdf."3.13"]
+filename = "shiboken6-uibcdf-6.10.1-py313h3fd9d12_0.conda"
+sha256 = "91718788b5e195adff6b46fa1f45a9935b7679b08dca2f5a2c3984f513ffeae7"
+run_id = 36280572019
+
+[artifacts.shiboken6-uibcdf."3.14"]
+filename = "shiboken6-uibcdf-6.10.1-py314h3fd9d12_0.conda"
+sha256 = "b91130c91a84277b7945fc97516bd2062d86a856743346e2f7ac62e6dd870540"
+run_id = 36280573131
+
+[artifacts.pyside6-essentials-uibcdf."3.11"]
+filename = "pyside6-essentials-uibcdf-6.10.1-py311h3fd9d12_0.conda"
+sha256 = "3ff6815feabf6a10da6c0c49a104787cbda3493cb1732beb0c5c562c82faf06f"
+run_id = 36280574560
+
+[artifacts.pyside6-addons-uibcdf."3.11"]
+filename = "pyside6-addons-uibcdf-6.10.1-py311h3fd9d12_0.conda"
+sha256 = "4176c0b8ea740d56f13d93bd9d688e586ebb2d4b5cfd2a19d8e72ed9f73dd4ef"
+run_id = 36303056305
