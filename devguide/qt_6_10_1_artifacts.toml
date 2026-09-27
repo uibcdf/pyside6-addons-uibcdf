@@ -63,3 +63,18 @@ run_id = 36303054992
 filename = "pyside6-addons-uibcdf-6.10.1-py311h3fd9d12_0.conda"
 sha256 = "4176c0b8ea740d56f13d93bd9d688e586ebb2d4b5cfd2a19d8e72ed9f73dd4ef"
 run_id = 36303056305
+
+[artifacts.pyside6-addons-uibcdf."3.12"]
+filename = "pyside6-addons-uibcdf-6.10.1-py312h3fd9d12_0.conda"
+sha256 = "1584cbf91774e187e751d44e45346eb0e8bdb100ccf3c56bf8303840ca1a90d4"
+run_id = 36305264641
+
+[artifacts.pyside6-addons-uibcdf."3.13"]
+filename = "pyside6-addons-uibcdf-6.10.1-py313h3fd9d12_0.conda"
+sha256 = "f6e0af122a2274c279857cdeecbb05696a32733652a195628acdce3d245c0b0a"
+run_id = 36305265493
+
+[artifacts.pyside6-addons-uibcdf."3.14"]
+filename = "pyside6-addons-uibcdf-6.10.1-py314h3fd9d12_0.conda"
+sha256 = "d616b124f915a47e1ba0290e52a4332ee5c9b035ebf8853c15079be472bf954c"
+run_id = 36305266471
